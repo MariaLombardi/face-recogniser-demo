@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import numpy as np
+import os
 import yarp
 import sys
 import pickle as pk
@@ -31,6 +32,11 @@ class FaceRecogniser(yarp.RFModule):
         print('Output path for the datasets: %s' % self.output_path_datasets)
         self.labels_set = (rf.find("face_labels").asString()).split("-")
         print('Labels set: [%s]' % ', '.join(map(str, self.labels_set)))
+
+        if not os.path.exists(self.output_path_models):
+            os.mkdir(self.output_path_models)
+        if not os.path.exists(self.output_path_models):
+            os.mkdir(self.output_path_models)
 
         self.dataset = []
         self.svm_model = None
@@ -159,12 +165,12 @@ class FaceRecogniser(yarp.RFModule):
                                 for i in range(0, len(faces_img)):
                                     self.dataset.append((get_embedding(self.facenet_model, faces_img[i]), self.labels_set[i]))
 
-                                # train each 50 samples (first time I'll get 100)
-                                if len(self.dataset) > 50*2 and len(self.dataset) % (50*2) == 0:
-                                    trainX = np.squeeze(np.asarray([data[0] for data in self.dataset[:-50]]))
-                                    trainy = np.asarray([data[1] for data in self.dataset[:-50]])
-                                    testX = np.squeeze(np.asarray([data[0] for data in self.dataset[-50:]]))
-                                    testy = np.asarray([data[1] for data in self.dataset[-50:]])
+                                # train each 50*2 samples (first time I'll get 100*2)
+                                if len(self.dataset) > 100 and len(self.dataset) % 100 == 0:
+                                    trainX = np.squeeze(np.asarray([data[0] for data in self.dataset[:-100]]))
+                                    trainy = np.asarray([data[1] for data in self.dataset[:-100]])
+                                    testX = np.squeeze(np.asarray([data[0] for data in self.dataset[-100:]]))
+                                    testy = np.asarray([data[1] for data in self.dataset[-100:]])
 
                                     in_encoder = Normalizer(norm='l2')
                                     trainX = in_encoder.transform(trainX)
