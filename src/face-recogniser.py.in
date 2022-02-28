@@ -36,9 +36,9 @@ class FaceRecogniser(yarp.RFModule):
         print('Labels set: [%s]' % ', '.join(map(str, self.labels_set)))
 
         if not os.path.exists(self.output_path_models):
-            os.mkdir(self.output_path_models)
-        if not os.path.exists(self.output_path_models):
-            os.mkdir(self.output_path_models)
+            os.makedirs(self.output_path_models)
+        if not os.path.exists(self.output_path_datasets):
+            os.makedirs(self.output_path_datasets)
 
         self.dataset = []
         self.svm_model = None
