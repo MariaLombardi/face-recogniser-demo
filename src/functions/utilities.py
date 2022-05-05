@@ -30,8 +30,8 @@ def get_openpose_bbox(pose):
 
         min_x = min([joint[0] for joint in n_joints_set])
         max_x = max([joint[0] for joint in n_joints_set])
-        min_x -= (max_x - min_x) * 0.4
-        max_x += (max_x - min_x) * 0.4
+        min_x -= (max_x - min_x) * 0.2
+        max_x += (max_x - min_x) * 0.2
 
         width = max_x - min_x
 
@@ -45,7 +45,7 @@ def get_openpose_bbox(pose):
 
         return min_x, min_y, max_x, max_y
     else:
-        print("Joint set empty!")
+        #print("Joint set empty!")
         return None, None, None, None
 
 
@@ -58,8 +58,8 @@ def extract_faces(frame, poses, required_size):
         if min_x is not None and min_y is not None and max_x is not None and max_y is not None:
             if min_x != max_x and min_y != max_y:
                 bboxes.append([math.floor(min_x), math.floor(min_y), math.floor(max_x), math.floor(max_y)])
-            else:
-                print("empty bbox! skipped")
+            #else:
+            #    print("empty bbox! skipped")
 
     # ordered bboxes by min_x
     if bboxes:
@@ -71,9 +71,57 @@ def extract_faces(frame, poses, required_size):
         for bbox in bboxes:
             face = frame[bbox[1]:bbox[3], bbox[0]:bbox[2]]
             resized = cv2.resize(face, required_size, interpolation=cv2.INTER_AREA)
+            resized = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
             faces.append(resized)
 
     return faces, bboxes, ordered_index
+
+
+def filter_faces(human_depth, faces_img, bboxes, order, num_selected_faces):
+    depths = []
+
+    new_faces_img = []
+    new_bboxes = []
+    new_order = []
+
+    for bbox in bboxes:
+        center_bbox = [bbox[0]+((bbox[2]-bbox[0])/2), bbox[1]+((bbox[3]-bbox[1])/2)]
+        depths.append(get_mean_depth_over_area(human_depth, center_bbox, 20))
+
+    for i in range(0, num_selected_faces):
+        min_depth = min(depths)
+        min_index = depths.index(min_depth)
+
+        new_faces_img.append(faces_img[min_index])
+        new_bboxes.append(bboxes[min_index])
+        new_order.append(order[min_index])
+
+        depths.pop(min_index)
+
+    return new_faces_img, new_bboxes, new_order
+
+
+def get_mean_depth_over_area(image_depth, pixel, range):
+
+    vertical_range = np.zeros(2)
+    vertical_range[0] = pixel[1] - round(range / 2) if pixel[1] - round(range / 2) > 0 else 0
+    vertical_range[1] = pixel[1] + round(range / 2) if pixel[1] + round(range / 2) < IMAGE_HEIGHT else IMAGE_HEIGHT
+
+    horizontal_range = np.zeros(2)
+    horizontal_range[0] = pixel[0] - round(range / 2) if pixel[0] - round(range / 2) > 0 else 0
+    horizontal_range[1] = pixel[0] + round(range / 2) if pixel[0] + round(range / 2) < IMAGE_WIDTH else IMAGE_WIDTH
+
+    vertical_range = vertical_range.astype(int)
+    horizontal_range = horizontal_range.astype(int)
+
+    depth = []
+    for hpix in np.arange(horizontal_range[0], horizontal_range[1]):
+        for vpix in np.arange(vertical_range[0], vertical_range[1]):
+            depth.append(image_depth[vpix, hpix])
+
+    mean_depth = np.mean(depth)
+
+    return mean_depth
 
 
 def read_openpose_data(received_data):
@@ -99,8 +147,9 @@ def read_openpose_data(received_data):
                             body_part = [part.get(1).asDouble(), part.get(2).asDouble(), part.get(3).asDouble()]
                             body_person.append(body_part)
 
-                if body_person and face_person:
+                if body_person:
                     body.append(body_person)
+                if face_person:
                     face.append(face_person)
 
     poses, conf_poses = load_many_poses(body)
@@ -131,9 +180,8 @@ def load_many_faces(data):
     return faces, confidences
 
 
-def draw_bboxes(image, bboxes):
+def draw_bboxes(image, bboxes, color):
 
-    color = (255, 0, 0)
     for bbox in bboxes:
         start_point = (bbox[0], bbox[1])
         end_point = (bbox[2], bbox[3])
@@ -143,15 +191,27 @@ def draw_bboxes(image, bboxes):
 
 
 # get the face embedding for one face
-def get_embedding(model, face):
-    # scale pixel values
-    face = face.astype('float32')
-    # standardize pixel values across channels (global)
+def get_embedding(model, faces):
+    # first face
+    face = faces[0].astype('float32')
     mean, std = face.mean(), face.std()
-    face_pixels = (face - mean) / std
+    face = (face - mean) / std
     # transform face into one sample
-    samples = np.expand_dims(face, axis=0)
-    # make prediction to get embedding
-    yhat = model.predict(samples)
+    sample = np.expand_dims(face, axis=0)
+    stack = np.vstack([sample])
 
-    return yhat[0]
+    if len(faces) > 1:
+        for i in range(1, len(faces)):
+            # scale pixel values
+            face = faces[i].astype('float32')
+            # standardize pixel values across channels (global)
+            mean, std = face.mean(), face.std()
+            face = (face - mean) / std
+            # transform face into one sample
+            sample = np.expand_dims(face, axis=0)
+            stack = np.vstack([stack, sample])
+
+    # make prediction to get embedding
+    yhat = model.predict(stack)
+
+    return yhat
