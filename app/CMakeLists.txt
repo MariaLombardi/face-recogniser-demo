@@ -1,5 +1,4 @@
 # Copyright: (C) 2017 Department of Robotics Brain and Cognitive Sciences - Istituto Italiano di Tecnologia
-# Authors: Elisa Maiettini
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 cmake_minimum_required(VERSION 2.6)

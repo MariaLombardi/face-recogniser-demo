@@ -12,7 +12,7 @@
 
 	<module>
 		<name>yarpOpenPose</name>
-		<parameters>--from /home/marialombardi/Workspace/face-recognition-demo/app/config/yarOpenpose.ini</parameters>
+		<parameters>--from /home/marialombardi/Workspace/face-recognition-demo/app/config/yarpOpenpose.ini</parameters>
 		<node>localhost</node>
 	</module>
 

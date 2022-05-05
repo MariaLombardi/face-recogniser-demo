@@ -1,6 +1,5 @@
 # Copyright (C) 2018 Fondazione Istituto Italiano di Tecnologia (IIT)
 # All Rights Reserved.
-# Authors: Elisa Maiettini <elisa.maiettini@iit.it>
 
 
 cmake_minimum_required(VERSION 3.1)
@@ -14,8 +13,10 @@ if(NOT EXISTS ${import_path})
 endif()
 
 configure_file(face-recogniser.py.in face-recogniser.py @ONLY)
+configure_file(face-recogniser.py.in face-recogniser-realsense.py @ONLY)
 
-set(python_bin ${CMAKE_CURRENT_SOURCE_DIR}/../build/src/face-recogniser.py)
+set(python_bin ${CMAKE_CURRENT_SOURCE_DIR}/../build/src/face-recogniser.py
+				${CMAKE_CURRENT_SOURCE_DIR}/../build/src/face-recogniser-realsense.py)
 
 add_custom_target(copy_python_in_build ALL)
 add_custom_command(TARGET copy_python_in_build POST_BUILD
