@@ -12,7 +12,7 @@
 
 	<module>
 		<name>yarpOpenPose</name>
-		<parameters></parameters>
+		<parameters>--from /home/marialombardi/Workspace/face-recognition-demo/app/config/yarOpenpose.ini</parameters>
 		<node>localhost</node>
 	</module>
 
@@ -68,7 +68,7 @@
 
 	
 
-	<!-- Path: real sense -> openPose -> python module -> view gaze -->
+	<!-- Path: real sense -> openPose -> python module -> view -->
 
 
 	<module>
@@ -84,6 +84,11 @@
 		<protocol>mjpeg</protocol>
 	</connection>
 
+	<connection>
+	      	<from>/depthCamera/depthImage:o</from>
+	      	<to>/facerecogniser/depth:i</to>
+	      	<protocol>fast_tcp</protocol>
+	</connection>
 	
 	<connection>
 		<from>/icub/camcalib/right/out</from>

@@ -1,7 +1,8 @@
 numpy
+opencv-python
 opencv-contrib-python
 yarp
 scikit-learn
 tensorflow
 keras
-
+imgaug
