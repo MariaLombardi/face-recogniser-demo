@@ -206,7 +206,7 @@ class FaceRecogniser(yarp.RFModule):
                                         print("Training done. Models have been saved.")
                                         self.TRAIN = 0
 
-                        # here everything is none, init phase
+                        # in the init phase everything is none
                         if self.svm_model is not None and self.encoder is not None and self.normaliser is not None:
                             # prediction for the face
                             data = []
@@ -224,9 +224,9 @@ class FaceRecogniser(yarp.RFModule):
                                 predicted_name = self.encoder.inverse_transform(y_pred)
 
                                 txt = "%s" % predicted_name[0]
-                                human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3])+20]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
+                                human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3])+20]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
                                 txt = "c: %0.1f" % prob
-                                human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3])+50]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2, cv2.LINE_AA)
+                                human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3])+50]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
 
                             if self.TRAIN == 0:
                                 # send in output the selected pose from openpose as bottle
