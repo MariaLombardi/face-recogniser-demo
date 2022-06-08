@@ -13,7 +13,7 @@ if(NOT EXISTS ${import_path})
 endif()
 
 configure_file(face-recogniser.py.in face-recogniser.py @ONLY)
-configure_file(face-recogniser.py.in face-recogniser-realsense.py @ONLY)
+configure_file(face-recogniser-realsense.py.in face-recogniser-realsense.py @ONLY)
 
 set(python_bin ${CMAKE_CURRENT_SOURCE_DIR}/../build/src/face-recogniser.py
 				${CMAKE_CURRENT_SOURCE_DIR}/../build/src/face-recogniser-realsense.py)
