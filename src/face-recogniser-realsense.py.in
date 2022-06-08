@@ -116,6 +116,8 @@ class FaceRecogniser(yarp.RFModule):
         self.out_port_prediction.open('/facerecogniser/pred:o')
         print('{:s} opened'.format('/facerecogniser/pred:o'))
 
+        self.human_image = np.ones((IMAGE_HEIGHT, IMAGE_WIDTH, 3), dtype=np.uint8)
+
         return True
 
     def respond(self, command, reply):
@@ -187,6 +189,7 @@ class FaceRecogniser(yarp.RFModule):
         if received_image and received_depth:
             self.in_buf_human_image.copy(received_image)
             human_image = np.copy(self.in_buf_human_array)
+            self.human_image = np.copy(human_image)
 
             self.in_buf_human_depth.copy(received_depth)
             human_depth = np.copy(self.in_buf_human_depth_array)
@@ -332,7 +335,7 @@ class FaceRecogniser(yarp.RFModule):
             self.out_buf_human_array[:, :] = human_image
             self.out_port_human_image.write(self.out_buf_human_image)
             # propag received image
-            self.out_buf_propag_array[:, :] = received_image
+            self.out_buf_propag_array[:, :] = self.human_image
             self.out_port_propag_image.write(self.out_buf_propag_image)
 
         return True
