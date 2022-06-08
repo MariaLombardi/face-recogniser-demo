@@ -16,6 +16,8 @@ from sklearn.svm import SVC
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 
+sys.path.append('@import_path@')
+
 from utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
 from utilities import get_embedding, compute_centroid, joint_set
 from utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE
