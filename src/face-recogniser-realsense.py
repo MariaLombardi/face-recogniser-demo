@@ -181,8 +181,8 @@ class FaceRecogniser(yarp.RFModule):
 
     def updateModule(self):
 
-        received_image = self.in_port_human_image.read()
         received_depth = self.in_port_human_depth.read()
+        received_image = self.in_port_human_image.read()
 
         if received_image and received_depth:
             self.in_buf_human_image.copy(received_image)
