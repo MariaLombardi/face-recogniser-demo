@@ -2,7 +2,7 @@
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 cmake_minimum_required(VERSION 2.6)
-set(PROJECTNAME face-recognition-demo)
+set(PROJECTNAME face-recogniser-demo)
 
 file(GLOB scripts ${CMAKE_CURRENT_SOURCE_DIR}/scripts/*.xml)
 file(GLOB config ${CMAKE_CURRENT_SOURCE_DIR}/config/*.ini)

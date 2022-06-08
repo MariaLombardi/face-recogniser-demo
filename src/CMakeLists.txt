@@ -3,7 +3,7 @@
 
 
 cmake_minimum_required(VERSION 3.1)
-project(face-recognition-demo)
+project(face-recogniser-demo)
 
 set(import_path "${CMAKE_CURRENT_SOURCE_DIR}/functions")
 

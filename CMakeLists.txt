@@ -2,7 +2,7 @@
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
 
 cmake_minimum_required(VERSION 3.1)
-project(face-recognition-demo)
+project(face-recogniser-demo)
 
 find_package(ICUBcontrib REQUIRED)
 find_package(YARP 3.1 REQUIRED COMPONENTS OS sig dev math rosmsg cv)
