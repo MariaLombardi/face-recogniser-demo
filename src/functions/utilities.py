@@ -141,10 +141,10 @@ def read_openpose_data(received_data):
                         if part.get(0).asString() == "Face":
                             for z in range(1, part.size()):
                                 item = part.get(z).asList()
-                                face_part = [item.get(0).asDouble(), item.get(1).asDouble(), item.get(2).asDouble()]
+                                face_part = [item.get(0).asFloat64(), item.get(1).asFloat64(), item.get(2).asFloat64()]
                                 face_person.append(face_part)
                         else:
-                            body_part = [part.get(1).asDouble(), part.get(2).asDouble(), part.get(3).asDouble()]
+                            body_part = [part.get(1).asFloat64(), part.get(2).asFloat64(), part.get(3).asFloat64()]
                             body_person.append(body_part)
 
                 if body_person:
