@@ -101,6 +101,16 @@ class FaceRecogniser(yarp.RFModule):
                                              self.out_buf_human_array.shape[0])
         print('{:s} opened'.format('/facerecogniser/image:o'))
 
+        # propag input image
+        self.out_port_propag_image = yarp.Port()
+        self.out_port_propag_image.open('/facerecogniser/propag:o')
+        self.out_buf_propag_array = np.ones((IMAGE_HEIGHT, IMAGE_WIDTH, 3), dtype=np.uint8)
+        self.out_buf_propag_image = yarp.ImageRgb()
+        self.out_buf_propag_image.resize(IMAGE_WIDTH, IMAGE_HEIGHT)
+        self.out_buf_propag_image.setExternal(self.out_buf_propag_array.data, self.out_buf_propag_array.shape[1],
+                                             self.out_buf_propag_array.shape[0])
+        print('{:s} opened'.format('/facerecogniser/propag:o'))
+
         # output port for the selection
         self.out_port_prediction = yarp.Port()
         self.out_port_prediction.open('/facerecogniser/pred:o')
@@ -152,6 +162,7 @@ class FaceRecogniser(yarp.RFModule):
         self.in_port_human_depth.close()
         self.in_port_human_data.close()
         self.out_port_human_image.close()
+        self.out_port_propag_image.close()
         self.out_port_prediction.close()
         return True
 
@@ -161,6 +172,7 @@ class FaceRecogniser(yarp.RFModule):
         self.in_port_human_depth.close()
         self.in_port_human_data.close()
         self.out_port_human_image.close()
+        self.out_port_propag_image.close()
         self.out_port_prediction.close()
         return True
 
@@ -319,6 +331,9 @@ class FaceRecogniser(yarp.RFModule):
             # write rgb image
             self.out_buf_human_array[:, :] = human_image
             self.out_port_human_image.write(self.out_buf_human_image)
+            #propag received image
+            self.out_buf_propag_array[:, :] = received_image
+            self.out_port_propag_image.write(self.out_buf_propag_image)
 
         return True
 
