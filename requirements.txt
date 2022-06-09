@@ -3,6 +3,6 @@ opencv-python
 opencv-contrib-python
 yarp
 scikit-learn
-tensorflow
+tensorflow-gpu
 keras
 imgaug
