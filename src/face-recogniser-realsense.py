@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import tensorflow as tf
-from keras.backend import set_session
 import random
 import numpy as np
 import os
@@ -29,18 +28,19 @@ def init_gpus(num_gpu, num_gpu_start):
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
         try:
-            tf.config.experimental.set_visible_devices(gpus[num_gpu_start:num_gpu_start+num_gpu], 'GPU')
-            print(len(gpus), "Physical GPUs found, Visible devices: ", tf.config.experimental.get_visible_devices('GPU'))
-            config = tf.ConfigProto()
-            config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
-            # config.gpu_options.per_process_gpu_memory_fraction = 0.4   # specify a specific percentage of the total GPUs memory.
-            config.log_device_placement = False  # to log device placement (on which device the operation ran)
-            # (nothing gets printed in Jupyter, only if you run it standalone)
-            sess = tf.Session(config=config)
-            set_session(sess)  # set this TensorFlow session as the default session for Keras
+            if num_gpu > 0:
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                tf.config.experimental.set_visible_devices(gpus[num_gpu_start:num_gpu_start+num_gpu], 'GPU')
+                print(len(gpus), "Physical GPUs found, Set visible devices: ", tf.config.experimental.get_visible_devices('GPU'))
+            else:
+                tf.config.experimental.set_visible_devices([], 'GPU')
+                print("GPU has been disable!!!")
         except RuntimeError as e:
             # Visible devices must be set before GPUs have been initialized
             print(e)
+    else:
+        print("No physical GPU found")
 
 
 class FaceRecogniser(yarp.RFModule):
@@ -48,6 +48,7 @@ class FaceRecogniser(yarp.RFModule):
     def configure(self, rf):
         num_gpu = rf.find("num_gpu").asInt32()
         num_gpu_start = rf.find("num_gpu_start").asInt32()
+        print('Num GPU: %d, GPU start: %d' % (num_gpu, num_gpu_start))
         init_gpus(num_gpu, num_gpu_start)
 
         self.TRAIN = 0
