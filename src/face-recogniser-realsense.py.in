@@ -376,7 +376,7 @@ class FaceRecogniser(yarp.RFModule):
             self.out_buf_human_array[:, :] = human_image
             self.out_port_human_image.write(self.out_buf_human_image)
             # propag received image
-            self.out_buf_propag_array[:, :] = self.human_image
+            self.out_buf_propag_image_array[:, :] = self.human_image
             self.out_port_propag_image.write(self.out_buf_propag_image)
             if received_depth:
                 # propag received depth
