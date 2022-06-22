@@ -130,12 +130,22 @@ class FaceRecogniser(yarp.RFModule):
         # propag input image
         self.out_port_propag_image = yarp.Port()
         self.out_port_propag_image.open('/facerecogniser/propag:o')
-        self.out_buf_propag_array = np.ones((IMAGE_HEIGHT, IMAGE_WIDTH, 3), dtype=np.uint8)
+        self.out_buf_propag_image_array = np.ones((IMAGE_HEIGHT, IMAGE_WIDTH, 3), dtype=np.uint8)
         self.out_buf_propag_image = yarp.ImageRgb()
         self.out_buf_propag_image.resize(IMAGE_WIDTH, IMAGE_HEIGHT)
-        self.out_buf_propag_image.setExternal(self.out_buf_propag_array.data, self.out_buf_propag_array.shape[1],
-                                              self.out_buf_propag_array.shape[0])
+        self.out_buf_propag_image.setExternal(self.out_buf_propag_image_array.data, self.out_buf_propag_image_array.shape[1],
+                                              self.out_buf_propag_image_array.shape[0])
         print('{:s} opened'.format('/facerecogniser/propag:o'))
+
+        # propag input depth
+        self.out_port_propag_depth = yarp.Port()
+        self.out_port_propag_depth.open('/facerecogniser/depth:o')
+        self.out_buf_propag_depth_array = np.ones((IMAGE_HEIGHT, IMAGE_WIDTH, 1), dtype=np.float32)
+        self.out_buf_propag_depth = yarp.ImageFloat()
+        self.out_buf_propag_depth.resize(IMAGE_WIDTH, IMAGE_HEIGHT)
+        self.out_buf_propag_depth.setExternal(self.out_buf_propag_depth_array.data, self.out_buf_propag_depth_array.shape[1],
+                                              self.out_buf_propag_depth_array.shape[0])
+        print('{:s} opened'.format('/facerecogniser/depth:o'))
 
         # output port for the selection
         self.out_port_prediction = yarp.Port()
@@ -191,6 +201,7 @@ class FaceRecogniser(yarp.RFModule):
         self.in_port_human_data.close()
         self.out_port_human_image.close()
         self.out_port_propag_image.close()
+        self.out_port_propag_depth.close()
         self.out_port_prediction.close()
         return True
 
@@ -201,6 +212,7 @@ class FaceRecogniser(yarp.RFModule):
         self.in_port_human_data.close()
         self.out_port_human_image.close()
         self.out_port_propag_image.close()
+        self.out_port_propag_depth.close()
         self.out_port_prediction.close()
         return True
 
@@ -209,16 +221,17 @@ class FaceRecogniser(yarp.RFModule):
 
     def updateModule(self):
 
-        received_depth = self.in_port_human_depth.read()
         received_image = self.in_port_human_image.read()
+        received_depth = self.in_port_human_depth.read(False)
 
-        if received_image and received_depth:
+        if received_image:
             self.in_buf_human_image.copy(received_image)
             human_image = np.copy(self.in_buf_human_array)
             self.human_image = np.copy(human_image)
 
-            self.in_buf_human_depth.copy(received_depth)
-            human_depth = np.copy(self.in_buf_human_depth_array)
+            if received_depth:
+                self.in_buf_human_depth.copy(received_depth)
+                human_depth = np.copy(self.in_buf_human_depth_array)
 
             received_data = self.in_port_human_data.read()
             if received_data:
@@ -229,18 +242,20 @@ class FaceRecogniser(yarp.RFModule):
                         # faces are ordered from left to right (x-axis increasing)
                         faces_img, bboxes, order = extract_faces(human_image, poses, required_size=(160, 160))
                         if len(bboxes) > 0:
-                            # filter bboxes by depth
-                            # suppose that the N labelled faces are the closer
-                            closer_faces_img, closer_bboxes, closer_order = filter_faces(human_depth, faces_img, bboxes, order, len(self.labels_set))
-                            for i in range(0, len(closer_faces_img)):
-                                cv2.imshow('image id %d' % i, closer_faces_img[i])
-                                cv2.waitKey(1)
                             # print bounding box
                             human_image = draw_bboxes(human_image, bboxes, color=(0, 0, 255))
-                            human_image = draw_bboxes(human_image, closer_bboxes, color=(255, 0, 0))
 
                             # if TRAINING collect the dataset
                             if self.TRAIN == 1:
+                                # filter bboxes by depth
+                                # suppose that the N labelled faces are the closer
+                                closer_faces_img, closer_bboxes, closer_order = filter_faces(human_depth, faces_img, bboxes,
+                                                                                             order, len(self.labels_set))
+                                for i in range(0, len(closer_faces_img)):
+                                    cv2.imshow('image id %d' % i, closer_faces_img[i])
+                                    cv2.waitKey(1)
+                                human_image = draw_bboxes(human_image, closer_bboxes, color=(255, 0, 0))
+
                                 # suppose the sequence of people from left to right is always the same and labelled
                                 raw_data = []
                                 for i in range(0, len(closer_faces_img)):
@@ -363,6 +378,10 @@ class FaceRecogniser(yarp.RFModule):
             # propag received image
             self.out_buf_propag_array[:, :] = self.human_image
             self.out_port_propag_image.write(self.out_buf_propag_image)
+            if received_depth:
+                # propag received depth
+                self.out_buf_propag_depth_array[:, :] = human_depth
+                self.out_port_propag_depth.write(self.out_buf_propag_depth)
 
         return True
 

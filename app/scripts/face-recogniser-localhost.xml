@@ -12,7 +12,7 @@
 
 	<module>
 		<name>yarpOpenPose</name>
-		<parameters>--from /home/marialombardi/Workspace/face-recognition-demo/app/config/yarpOpenpose.ini</parameters>
+		<parameters>--from /home/marialombardi/Workspace/face-recogniser-demo/app/config/yarpOpenpose.ini</parameters>
 		<node>localhost</node>
 	</module>
 
@@ -24,6 +24,7 @@
 		<parameters>--name /view/rgb --w 640 --h 480</parameters>
 		<node>localhost</node>
 	</module>
+
 
 	<connection>
 		<from>/depthCamera/rgbImage:o</from>
@@ -46,7 +47,7 @@
 		<node>localhost</node>
 	</module>
 
-	
+
 	<connection>
 		<from>/depthCamera/rgbImage:o</from>
 		<to>/yarpOpenPose/image:i</to>
@@ -59,6 +60,11 @@
 		<protocol>mjpeg</protocol>
 	</connection>
 
+	<connection>
+		<from>/depthCamera/depthImage:o</from>
+		<to>/yarpOpenPose/float:i</to>
+		<protocol>fast_tcp</protocol>
+	</connection>
 
 	<connection>
 		<from>/yarpOpenPose/image:o</from>
@@ -77,21 +83,27 @@
 	      	<node>localhost</node>
 	</module>
 
+	<module>
+		<name>yarpview</name>
+		<parameters>--name /view/depth --w 640 --h 480</parameters>
+		<node>localhost</node>
+	</module>
+
 
 	<connection>
-		<from>/depthCamera/rgbImage:o</from>
+		<from>/yarpOpenPose/propag:o</from>
 		<to>/facerecogniser/image:i</to>
 		<protocol>mjpeg</protocol>
 	</connection>
 
 	<connection>
-	      	<from>/depthCamera/depthImage:o</from>
+	      	<from>/yarpOpenPose/float:o</from>
 	      	<to>/facerecogniser/depth:i</to>
 	      	<protocol>fast_tcp</protocol>
 	</connection>
 	
 	<connection>
-		<from>/icub/camcalib/right/out</from>
+		<from>/yarpOpenPose/propag:o</from>
 		<to>/facerecogniser/image:i</to>
 		<protocol>mjpeg</protocol>
 	</connection>
@@ -101,11 +113,16 @@
 		<to>/facerecogniser/data:i</to>
 	</connection>
 
-
 	<connection>
 	      	<from>/facerecogniser/image:o</from>
 	      	<to>/view/bbox</to>
 	      	<protocol>mjpeg</protocol>
+	</connection>
+
+	<connection>
+		<from>/facerecogniser/depth:o</from>
+		<to>/view/depth</to>
+		<protocol>fast_tcp+recv.portmonitor+type.dll+file.depthimage</protocol>
 	</connection>
 	
 
