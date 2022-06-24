@@ -7,6 +7,7 @@ import cv2
 
 # open pose
 JOINTS_POSE = [0, 15, 16, 17, 18]
+JOINT_HIP = 8
 IMAGE_HEIGHT = 480
 IMAGE_WIDTH = 640
 
@@ -20,6 +21,14 @@ def compute_centroid(points):
 
 def joint_set(p):
     return p[0] != 0.0 or p[1] != 0.0
+
+
+def dist_2d(p1, p2):
+    p1 = np.array(p1)
+    p2 = np.array(p2)
+
+    squared_dist = np.sum((p1 - p2)**2, axis=0)
+    return np.sqrt(squared_dist)
 
 
 def get_openpose_bbox(pose):

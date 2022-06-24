@@ -10,6 +10,7 @@ import pickle as pk
 from keras.models import load_model
 import cv2
 import glob
+import distutils.util
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.preprocessing import Normalizer, LabelEncoder
 import imgaug.augmenters as iaa
@@ -18,8 +19,8 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 
 from functions.utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
-from functions.utilities import get_embedding, compute_centroid, joint_set
-from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE
+from functions.utilities import get_embedding, compute_centroid, joint_set, dist_2d
+from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINT_HIP
 
 yarp.Network.init()
 
@@ -64,6 +65,8 @@ class FaceRecogniser(yarp.RFModule):
         print('Labels set: [%s]' % ', '.join(map(str, self.labels_set)))
         self.path_lfw_dataset = rf.find("path_lfw_dataset").asString()
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
+        self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
+        print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
 
         if not os.path.exists(self.output_path_models):
             os.makedirs(self.output_path_models)
@@ -76,6 +79,9 @@ class FaceRecogniser(yarp.RFModule):
         self.normaliser = None
         self.name_file = ""
         self.face_selected = ""
+        if self.HUMAN_TRACKING:
+            self.prev_human_hip = []
+
 
         # init lfw dataset
         self.lfw_dataset = []
@@ -362,8 +368,78 @@ class FaceRecogniser(yarp.RFModule):
                                             self.out_port_prediction.write(pred_list)
 
                                             human_image = cv2.circle(human_image, tuple([int(centroid[0]), int(centroid[1])]), 6, (255, 0, 0), -1)
+                                        else:
+                                            if self.HUMAN_TRACKING:
+                                                print("Recognised the human but the face is not visible. Forward the recognised skeleton anyway.")
+                                                pred = yarp.Bottle()
+                                                pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
+                                                pred_list = yarp.Bottle()
+                                                pred_list.addList().read(pred)
+                                                self.out_port_prediction.write(pred_list)
+
+                                                if joint_set(selected_pose[JOINT_HIP]):
+                                                    human_image = cv2.circle(human_image, tuple(
+                                                        [int(selected_pose[JOINT_HIP][0]), int(selected_pose[JOINT_HIP][1])]), 6,
+                                                                             (255, 0, 0), -1)
+
+                                        if self.HUMAN_TRACKING and joint_set(selected_pose[JOINT_HIP]):
+                                            self.prev_human_hip = selected_pose[JOINT_HIP]
+                                    else:
+                                        if self.HUMAN_TRACKING:
+                                            print("People not recognised in the scene. Forwarding the track of the prev skeleton.")
+                                            current_hips = []
+                                            for pose in poses:
+                                                current_hips.append(pose[JOINT_HIP])
+                                            dist = []
+                                            for i in range(0, len(current_hips)):
+                                                if joint_set(current_hips[i]):
+                                                    dist.append(dist_2d(current_hips[i], self.prev_human_hip))
+                                                else:
+                                                    dist.append(None)
+
+                                            if len(dist) != 0 and not np.isnan(np.array(dist)).all():
+                                                min_value = min(i for i in dist if i > 0)
+                                                min_idx = dist.index(min_value)
+                                                pred = yarp.Bottle()
+                                                pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                                pred_list = yarp.Bottle()
+                                                pred_list.addList().read(pred)
+                                                self.out_port_prediction.write(pred_list)
+
+                                                human_image = cv2.circle(human_image, tuple(
+                                                    [int(current_hips[min_idx][0]), int(current_hips[min_idx][1])]), 6,
+                                                                         (255, 0, 0), -1)
+
+                                                self.prev_human_hip = current_hips[min_idx]
+                                            else:
+                                                print('Cannot track the skeleton at minimum distance')
                         else:
                             print('Cannot extract any face from OpenPose')
+                            # if the face is not visible
+                            if self.HUMAN_TRACKING:
+                                current_hips = []
+                                for pose in poses:
+                                    current_hips.append(pose[JOINT_HIP])
+                                dist = []
+                                for i in range(0, len(current_hips)):
+                                    if joint_set(current_hips[i]):
+                                        dist.append(dist_2d(current_hips[i], self.prev_human_hip))
+                                    else:
+                                        dist.append(None)
+
+                                if len(dist) != 0 and not np.isnan(np.array(dist)).all():
+                                    min_value = min(i for i in dist if i is not None)
+                                    min_idx = dist.index(min_value)
+                                    pred = yarp.Bottle()
+                                    pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                    pred_list = yarp.Bottle()
+                                    pred_list.addList().read(pred)
+                                    self.out_port_prediction.write(pred_list)
+
+                                    human_image = cv2.circle(human_image, tuple([int(current_hips[min_idx][0]), int(current_hips[min_idx][1])]), 6, (255, 0, 0), -1)
+                                    self.prev_human_hip = current_hips[min_idx]
+                                else:
+                                    print('Cannot track the skeleton at minimum distance')
                     else:
                         print('No human detected by OpenPose')
                 except Exception as err:
