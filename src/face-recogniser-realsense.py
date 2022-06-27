@@ -208,6 +208,7 @@ class FaceRecogniser(yarp.RFModule):
         self.out_port_propag_image.close()
         self.out_port_propag_depth.close()
         self.out_port_prediction.close()
+        self.cmd_port.close()
         return True
 
     def interruptModule(self):
@@ -219,6 +220,7 @@ class FaceRecogniser(yarp.RFModule):
         self.out_port_propag_image.close()
         self.out_port_propag_depth.close()
         self.out_port_prediction.close()
+        self.cmd_port.close()
         return True
 
     def getPeriod(self):
