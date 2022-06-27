@@ -429,7 +429,7 @@ class FaceRecogniser(yarp.RFModule):
                                     else:
                                         dist.append(None)
 
-                                if len(dist) != 0 and not np.isnan(np.array(dist)).all():
+                                if len(dist) != 0 and not np.isnan(np.array(dist)).any():
                                     min_value = min(i for i in dist if i is not None)
                                     min_idx = dist.index(min_value)
                                     pred = yarp.Bottle()
