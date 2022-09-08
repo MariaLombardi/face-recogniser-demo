@@ -343,11 +343,26 @@ class FaceRecogniser(yarp.RFModule):
                                     y_pred = (np.where(yhat_class[itP] == prob))[0]
                                     y_preds.append((y_pred[0], prob))
 
-                                    predicted_name = self.encoder.inverse_transform(y_pred)
+                                # there is only one instance for each label in label_set
+                                for label in self.labels_set:
+                                    max_conf = 0
+                                    max_conf_idx = 0
+                                    for itP in range(0, len(y_preds)):
+                                        if y_preds[itP][0] == self.encoder.transform([label])[0]:
+                                            if y_preds[itP][1] > max_conf:
+                                                max_conf = y_preds[itP][1]
+                                                max_conf_idx = itP
+                                    # keep the child only at idx
+                                    for itP in range(0, len(y_preds)):
+                                        if y_preds[itP][0] == self.encoder.transform([label])[0] and itP != max_conf_idx:
+                                            y_preds[itP][0] = self.encoder.transform(['unknown'])[0]
+
+                                for itP in range(0, len(y_preds)):
+                                    predicted_name = self.encoder.inverse_transform([y_preds[itP][0]])
 
                                     txt = "%s" % predicted_name[0]
                                     human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3])+20]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
-                                    txt = "c: %0.1f" % prob
+                                    txt = "c: %0.1f" % y_preds[itP][1]
                                     human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3])+50]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
 
                                 if self.TRAIN == 0:
@@ -399,7 +414,8 @@ class FaceRecogniser(yarp.RFModule):
                                                 else:
                                                     dist.append(None)
 
-                                            if len(dist) != 0 and not np.isnan(np.array(dist)).all():
+                                            #if len(dist) != 0 and not np.isnan(np.array(dist)).all():
+                                            if len(dist) != 0 and not all(v is None for v in dist):
                                                 min_value = min(i for i in dist if i > 0)
                                                 min_idx = dist.index(min_value)
                                                 pred = yarp.Bottle()
