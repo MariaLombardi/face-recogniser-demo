@@ -16,6 +16,12 @@
 		<node>localhost</node>
 	</module>
 
+	<module>
+		<name>yarpdev</name>
+		<parameters>--device opencv_grabber --camera 0 --name /webcam/rgbImage:o --width 640 --height 480</parameters>
+		<node>localhost</node>
+	</module>
+
 	
 	<!-- Path: realsense -> view -->
 
@@ -38,6 +44,12 @@
 		<protocol>mjpeg</protocol>
 	</connection>
 
+	<connection>
+		<from>/webcam/rgbImage:o</from>
+		<to>/view/rgb</to>
+		<protocol>mjpeg</protocol>
+	</connection>
+
 	
 	<!-- Path: real sense -> openPose -> view skeleton -->
 
@@ -56,6 +68,12 @@
 
 	<connection>
 		<from>/icub/camcalib/right/out</from>
+		<to>/yarpOpenPose/image:i</to>
+		<protocol>mjpeg</protocol>
+	</connection>
+
+	<connection>
+		<from>/webcam/rgbImage:o</from>
 		<to>/yarpOpenPose/image:i</to>
 		<protocol>mjpeg</protocol>
 	</connection>

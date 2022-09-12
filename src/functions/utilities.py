@@ -7,9 +7,12 @@ import cv2
 
 # open pose
 JOINTS_POSE = [0, 15, 16, 17, 18]
-JOINT_HIP = 8
+# hip, neck, right and left shoulder
+JOINTS_TRACKING = [8, 1, 2, 5]
 IMAGE_HEIGHT = 480
 IMAGE_WIDTH = 640
+DISTANCE_THRESHOLD = 50
+TIMEOUT = 3000  # in milliseconds
 
 
 def compute_centroid(points):

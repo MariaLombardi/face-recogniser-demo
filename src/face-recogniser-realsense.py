@@ -3,6 +3,7 @@
 import tensorflow as tf
 import random
 import numpy as np
+import statistics
 import os
 import yarp
 import sys
@@ -20,7 +21,7 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 
 from functions.utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
 from functions.utilities import get_embedding, compute_centroid, joint_set, dist_2d
-from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINT_HIP
+from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINTS_TRACKING, DISTANCE_THRESHOLD, TIMEOUT
 
 yarp.Network.init()
 
@@ -80,7 +81,7 @@ class FaceRecogniser(yarp.RFModule):
         self.name_file = ""
         self.face_selected = ""
         if self.HUMAN_TRACKING:
-            self.prev_human_hip = []
+            self.prev_human_joints_tracking = [None]*len(JOINTS_TRACKING)
 
 
         # init lfw dataset
@@ -394,68 +395,127 @@ class FaceRecogniser(yarp.RFModule):
                                                 pred_list.addList().read(pred)
                                                 self.out_port_prediction.write(pred_list)
 
-                                                if joint_set(selected_pose[JOINT_HIP]):
-                                                    human_image = cv2.circle(human_image, tuple(
-                                                        [int(selected_pose[JOINT_HIP][0]), int(selected_pose[JOINT_HIP][1])]), 6,
-                                                                             (255, 0, 0), -1)
+                                                for joint in JOINTS_TRACKING:
+                                                    if joint_set(selected_pose[joint]):
+                                                        human_image = cv2.circle(human_image, tuple(
+                                                            [int(selected_pose[joint][0]), int(selected_pose[joint][1])]), 6,
+                                                                                 (255, 0, 0), -1)
 
-                                        if self.HUMAN_TRACKING and joint_set(selected_pose[JOINT_HIP]):
-                                            self.prev_human_hip = selected_pose[JOINT_HIP]
+                                        if self.HUMAN_TRACKING:
+                                            for i in range(0, len(JOINTS_TRACKING)):
+                                                if joint_set(selected_pose[JOINTS_TRACKING[i]]):
+                                                    self.prev_human_joints_tracking[i] = tuple(selected_pose[JOINTS_TRACKING[i]])
+                                                else:
+                                                    self.prev_human_joints_tracking[i] = None
                                     else:
                                         if self.HUMAN_TRACKING:
                                             print("People not recognised in the scene. Forwarding the track of the prev skeleton.")
-                                            current_hips = []
+                                            # joints of all people in the scene
+                                            current_joints_poses_tracking = []
                                             for pose in poses:
-                                                current_hips.append(pose[JOINT_HIP])
+                                                #joints for the single pose
+                                                current_joints_pose = []
+                                                for i in range(0, len(JOINTS_TRACKING)):
+                                                    if joint_set(pose[JOINTS_TRACKING[i]]):
+                                                        current_joints_pose.append(tuple(pose[JOINTS_TRACKING[i]]))
+                                                    else:
+                                                        current_joints_pose.append(None)
+                                                current_joints_poses_tracking.append(current_joints_pose)
+
                                             dist = []
-                                            for i in range(0, len(current_hips)):
-                                                if joint_set(current_hips[i]):
-                                                    dist.append(dist_2d(current_hips[i], self.prev_human_hip))
-                                                else:
-                                                    dist.append(None)
+                                            for row in current_joints_poses_tracking:
+                                                dist_row = []
+                                                for i in range(0, len(row)):
+                                                    if row[i] is not None and self.prev_human_joints_tracking[i] is not None:
+                                                        dist_row.append(dist_2d(row[i], self.prev_human_joints_tracking[i]))
+                                                    else:
+                                                        dist_row.append(None)
+                                                dist.append(dist_row)
 
                                             #if len(dist) != 0 and not np.isnan(np.array(dist)).all():
-                                            if len(dist) != 0 and not all(v is None for v in dist):
-                                                min_value = min(i for i in dist if i > 0)
-                                                min_idx = dist.index(min_value)
-                                                pred = yarp.Bottle()
-                                                pred.addList().read((received_data.get(0).asList()).get(min_idx))
-                                                pred_list = yarp.Bottle()
-                                                pred_list.addList().read(pred)
-                                                self.out_port_prediction.write(pred_list)
+                                            if len(dist) != 0:
+                                                mean_dist = []
+                                                for row in dist:
+                                                    if not all(v is None for v in row):
+                                                        dist_without_None = [v for v in row if v is not None]
+                                                        mean_dist.append(statistics.mean(dist_without_None))
+                                                    else:
+                                                        mean_dist.append(None)
 
-                                                human_image = cv2.circle(human_image, tuple(
-                                                    [int(current_hips[min_idx][0]), int(current_hips[min_idx][1])]), 6,
-                                                                         (255, 0, 0), -1)
+                                                min_value = min(i for i in mean_dist if i is not None)
+                                                min_idx = mean_dist.index(min_value)
+                                                if min_value <= DISTANCE_THRESHOLD:
+                                                    pred = yarp.Bottle()
+                                                    pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                                    pred_list = yarp.Bottle()
+                                                    pred_list.addList().read(pred)
+                                                    self.out_port_prediction.write(pred_list)
 
-                                                self.prev_human_hip = current_hips[min_idx]
+                                                    for joint in current_joints_poses_tracking[min_idx]:
+                                                        if joint is not None:
+                                                            human_image = cv2.circle(human_image, tuple(
+                                                                [int(joint[0]), int(joint[1])]), 6,
+                                                                                     (255, 0, 0), -1)
+
+                                                    self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
+                                                else:
+                                                    print('Closest human too far from the tracked one')
                                             else:
                                                 print('Cannot track the skeleton at minimum distance')
                         else:
                             print('Cannot extract any face from OpenPose')
                             # if the face is not visible
                             if self.HUMAN_TRACKING:
-                                current_hips = []
+                                # joints of all people in the scene
+                                current_joints_poses_tracking = []
                                 for pose in poses:
-                                    current_hips.append(pose[JOINT_HIP])
+                                    # joints for the single pose
+                                    current_joints_pose = []
+                                    for i in range(0, len(JOINTS_TRACKING)):
+                                        if joint_set(pose[JOINTS_TRACKING[i]]):
+                                            current_joints_pose.append(tuple(pose[JOINTS_TRACKING[i]]))
+                                        else:
+                                            current_joints_pose.append(None)
+                                    current_joints_poses_tracking.append(current_joints_pose)
+
                                 dist = []
-                                for i in range(0, len(current_hips)):
-                                    if joint_set(current_hips[i]):
-                                        dist.append(dist_2d(current_hips[i], self.prev_human_hip))
+                                for row in current_joints_poses_tracking:
+                                    dist_row = []
+                                    for i in range(0, len(row)):
+                                        if row[i] is not None and self.prev_human_joints_tracking[i] is not None:
+                                            dist_row.append(dist_2d(row[i], self.prev_human_joints_tracking[i]))
+                                        else:
+                                            dist_row.append(None)
+                                    dist.append(dist_row)
+
+                                # if len(dist) != 0 and not np.isnan(np.array(dist)).all():
+                                if len(dist) != 0:
+                                    mean_dist = []
+                                    for row in dist:
+                                        if not all(v is None for v in row):
+                                            dist_without_None = [v for v in row if v is not None]
+                                            mean_dist.append(statistics.mean(dist_without_None))
+                                        else:
+                                            mean_dist.append(None)
+
+                                    min_value = min(i for i in mean_dist if i is not None)
+                                    min_idx = mean_dist.index(min_value)
+                                    if min_value <= DISTANCE_THRESHOLD:
+                                        pred = yarp.Bottle()
+                                        pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                        pred_list = yarp.Bottle()
+                                        pred_list.addList().read(pred)
+                                        self.out_port_prediction.write(pred_list)
+
+                                        for joint in current_joints_poses_tracking[min_idx]:
+                                            if joint is not None:
+                                                human_image = cv2.circle(human_image, tuple(
+                                                    [int(joint[0]), int(joint[1])]), 6,
+                                                                         (255, 0, 0), -1)
+
+                                        self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
                                     else:
-                                        dist.append(None)
-
-                                if len(dist) != 0 and not np.isnan(np.array(dist)).any():
-                                    min_value = min(i for i in dist if i is not None)
-                                    min_idx = dist.index(min_value)
-                                    pred = yarp.Bottle()
-                                    pred.addList().read((received_data.get(0).asList()).get(min_idx))
-                                    pred_list = yarp.Bottle()
-                                    pred_list.addList().read(pred)
-                                    self.out_port_prediction.write(pred_list)
-
-                                    human_image = cv2.circle(human_image, tuple([int(current_hips[min_idx][0]), int(current_hips[min_idx][1])]), 6, (255, 0, 0), -1)
-                                    self.prev_human_hip = current_hips[min_idx]
+                                        print('Closest human too far from the tracked one')
                                 else:
                                     print('Cannot track the skeleton at minimum distance')
                     else:
