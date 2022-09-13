@@ -21,7 +21,7 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 
 from functions.utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
 from functions.utilities import get_embedding, compute_centroid, joint_set, dist_2d
-from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINTS_TRACKING, DISTANCE_THRESHOLD, TIMEOUT
+from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINTS_TRACKING, DISTANCE_THRESHOLD
 
 yarp.Network.init()
 
@@ -82,7 +82,6 @@ class FaceRecogniser(yarp.RFModule):
         self.face_selected = ""
         if self.HUMAN_TRACKING:
             self.prev_human_joints_tracking = [None]*len(JOINTS_TRACKING)
-
 
         # init lfw dataset
         self.lfw_dataset = []

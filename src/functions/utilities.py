@@ -12,7 +12,6 @@ JOINTS_TRACKING = [8, 1, 2, 5]
 IMAGE_HEIGHT = 480
 IMAGE_WIDTH = 640
 DISTANCE_THRESHOLD = 50
-TIMEOUT = 3000  # in milliseconds
 
 
 def compute_centroid(points):
