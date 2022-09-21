@@ -18,6 +18,15 @@ def compute_centroid(points):
     mean_x = np.mean([p[0] for p in points])
     mean_y = np.mean([p[1] for p in points])
 
+    if mean_x > IMAGE_WIDTH:
+        mean_x = IMAGE_WIDTH
+    if mean_x < 0:
+        mean_x = 0
+    if mean_y > IMAGE_HEIGHT:
+        mean_y = IMAGE_HEIGHT
+    if mean_y < 0:
+        mean_y = 0
+
     return [mean_x, mean_y]
 
 
@@ -36,7 +45,7 @@ def dist_2d(p1, p2):
 def get_openpose_bbox(pose):
 
     n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
-    if n_joints_set:
+    if len(n_joints_set) > 2:
         centroid = compute_centroid(n_joints_set)
 
         min_x = min([joint[0] for joint in n_joints_set])
