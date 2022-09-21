@@ -68,8 +68,8 @@ class FaceRecogniser(yarp.RFModule):
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
         self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
-        self.DISTANCE_THRESHOLD = rf.find("distance_threshold").asInt32()
-        print('Distance threshold for the recognition: %d meters' % self.DISTANCE_THRESHOLD)
+        self.HUMAN_DISTANCE_THRESHOLD = rf.find("distance_threshold").asFloat64()
+        print('Distance threshold for the recognition: %d meters' % self.HUMAN_DISTANCE_THRESHOLD)
 
         if not os.path.exists(self.output_path_models):
             os.makedirs(self.output_path_models)
@@ -231,7 +231,7 @@ class FaceRecogniser(yarp.RFModule):
     def updateModule(self):
 
         received_image = self.in_port_human_image.read()
-        received_depth = self.in_port_human_depth.read(False)
+        received_depth = self.in_port_human_depth.read()
 
         if received_image:
             self.in_buf_human_image.copy(received_image)
@@ -247,8 +247,8 @@ class FaceRecogniser(yarp.RFModule):
                 try:
                     poses, conf_poses, faces, conf_faces = read_openpose_data(received_data)
                     # get only the poses in a certain threshold (e.g. 2 meters)
-                    if human_depth and poses:
-                        poses, conf_poses, faces, conf_faces = get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, self.DISTANCE_THRESHOLD)
+                    if poses:
+                        poses, conf_poses, faces, conf_faces = get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, self.HUMAN_DISTANCE_THRESHOLD)
 
                     if poses:
                         # images 160x160 pixels
@@ -447,24 +447,25 @@ class FaceRecogniser(yarp.RFModule):
                                                     else:
                                                         mean_dist.append(None)
 
-                                                min_value = min(i for i in mean_dist if i is not None)
-                                                min_idx = mean_dist.index(min_value)
-                                                if min_value <= DISTANCE_THRESHOLD:
-                                                    pred = yarp.Bottle()
-                                                    pred.addList().read((received_data.get(0).asList()).get(min_idx))
-                                                    pred_list = yarp.Bottle()
-                                                    pred_list.addList().read(pred)
-                                                    self.out_port_prediction.write(pred_list)
+                                                if not all(v is None for v in mean_dist):
+                                                    min_value = min(i for i in mean_dist if i is not None)
+                                                    min_idx = mean_dist.index(min_value)
+                                                    if min_value <= DISTANCE_THRESHOLD:
+                                                        pred = yarp.Bottle()
+                                                        pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                                        pred_list = yarp.Bottle()
+                                                        pred_list.addList().read(pred)
+                                                        self.out_port_prediction.write(pred_list)
 
-                                                    for joint in current_joints_poses_tracking[min_idx]:
-                                                        if joint is not None:
-                                                            human_image = cv2.circle(human_image, tuple(
-                                                                [int(joint[0]), int(joint[1])]), 6,
-                                                                                     (255, 0, 0), -1)
+                                                        for joint in current_joints_poses_tracking[min_idx]:
+                                                            if joint is not None:
+                                                                human_image = cv2.circle(human_image, tuple(
+                                                                    [int(joint[0]), int(joint[1])]), 6,
+                                                                                         (255, 0, 0), -1)
 
-                                                    self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
-                                                else:
-                                                    print('Closest human too far from the tracked one')
+                                                        self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
+                                                    else:
+                                                        print('Closest human too far from the tracked one')
                                             else:
                                                 print('Cannot track the skeleton at minimum distance')
                         else:
@@ -503,24 +504,25 @@ class FaceRecogniser(yarp.RFModule):
                                         else:
                                             mean_dist.append(None)
 
-                                    min_value = min(i for i in mean_dist if i is not None)
-                                    min_idx = mean_dist.index(min_value)
-                                    if min_value <= DISTANCE_THRESHOLD:
-                                        pred = yarp.Bottle()
-                                        pred.addList().read((received_data.get(0).asList()).get(min_idx))
-                                        pred_list = yarp.Bottle()
-                                        pred_list.addList().read(pred)
-                                        self.out_port_prediction.write(pred_list)
+                                    if not all(v is None for v in mean_dist):
+                                        min_value = min(i for i in mean_dist if i is not None)
+                                        min_idx = mean_dist.index(min_value)
+                                        if min_value <= DISTANCE_THRESHOLD:
+                                            pred = yarp.Bottle()
+                                            pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                            pred_list = yarp.Bottle()
+                                            pred_list.addList().read(pred)
+                                            self.out_port_prediction.write(pred_list)
 
-                                        for joint in current_joints_poses_tracking[min_idx]:
-                                            if joint is not None:
-                                                human_image = cv2.circle(human_image, tuple(
-                                                    [int(joint[0]), int(joint[1])]), 6,
-                                                                         (255, 0, 0), -1)
+                                            for joint in current_joints_poses_tracking[min_idx]:
+                                                if joint is not None:
+                                                    human_image = cv2.circle(human_image, tuple(
+                                                        [int(joint[0]), int(joint[1])]), 6,
+                                                                             (255, 0, 0), -1)
 
-                                        self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
-                                    else:
-                                        print('Closest human too far from the tracked one')
+                                            self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
+                                        else:
+                                            print('Closest human too far from the tracked one')
                                 else:
                                     print('Cannot track the skeleton at minimum distance')
                     else:

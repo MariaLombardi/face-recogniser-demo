@@ -97,7 +97,7 @@ def filter_faces(human_depth, faces_img, bboxes, order, num_selected_faces):
 
     for bbox in bboxes:
         center_bbox = [bbox[0]+((bbox[2]-bbox[0])/2), bbox[1]+((bbox[3]-bbox[1])/2)]
-        depths.append(get_mean_depth_over_area(human_depth, center_bbox, 20))
+        depths.append(get_mean_depth_over_area(human_depth, center_bbox, 2))
 
     for i in range(0, num_selected_faces):
         min_depth = min(depths)
@@ -122,7 +122,7 @@ def get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, distance
         centroid = compute_centroid(
             [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])])
 
-        depth = get_mean_depth_over_area(human_depth, centroid, 20)
+        depth = get_mean_depth_over_area(human_depth, centroid, 2)
         if depth <= distance:
             new_poses.append(pose)
             new_conf_poses.append(conf_poses[idx])
