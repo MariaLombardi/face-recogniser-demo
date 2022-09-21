@@ -128,10 +128,10 @@ def get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, distance
     new_conf_faces = []
 
     for idx, pose in enumerate(poses):
-        centroid = compute_centroid(
-            [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])])
+        n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
+        points_depth = [human_depth[joint[1], joint[0]] for joint in n_joints_set]
+        depth = np.mean(points_depth)
 
-        depth = get_mean_depth_over_area(human_depth, centroid, 2)
         if depth <= distance:
             new_poses.append(pose)
             new_conf_poses.append(conf_poses[idx])

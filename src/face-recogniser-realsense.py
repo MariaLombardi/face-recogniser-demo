@@ -69,7 +69,7 @@ class FaceRecogniser(yarp.RFModule):
         self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
         self.HUMAN_DISTANCE_THRESHOLD = rf.find("distance_threshold").asFloat64()
-        print('Distance threshold for the recognition: %d meters' % self.HUMAN_DISTANCE_THRESHOLD)
+        print('Distance threshold for the recognition: %.2f meters' % self.HUMAN_DISTANCE_THRESHOLD)
 
         if not os.path.exists(self.output_path_models):
             os.makedirs(self.output_path_models)
