@@ -22,7 +22,7 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 sys.path.append('@import_path@')
 
 from utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
-from utilities import get_embedding, compute_centroid, joint_set, dist_2d
+from utilities import get_embedding, compute_centroid, joint_set, dist_2d, get_closer_poses
 from utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINTS_TRACKING, DISTANCE_THRESHOLD
 
 yarp.Network.init()
@@ -69,6 +69,8 @@ class FaceRecogniser(yarp.RFModule):
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
         self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
+        self.DISTANCE_THRESHOLD = rf.find("distance_threshold").asInt32()
+        print('Distance threshold for the recognition: %d meters' % self.DISTANCE_THRESHOLD)
 
         if not os.path.exists(self.output_path_models):
             os.makedirs(self.output_path_models)
@@ -245,6 +247,10 @@ class FaceRecogniser(yarp.RFModule):
             if received_data:
                 try:
                     poses, conf_poses, faces, conf_faces = read_openpose_data(received_data)
+                    # get only the poses in a certain threshold (e.g. 2 meters)
+                    if human_depth and poses:
+                        poses, conf_poses, faces, conf_faces = get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, self.DISTANCE_THRESHOLD)
+
                     if poses:
                         # images 160x160 pixels
                         # faces are ordered from left to right (x-axis increasing)
@@ -284,7 +290,7 @@ class FaceRecogniser(yarp.RFModule):
 
                                 # train each num_classes*100 samples
                                 num_classes = (len(self.labels_set)+1)
-                                if len(self.dataset) > 500*num_classes and len(self.dataset) % 1000 == 0:
+                                if len(self.dataset) > 1000*num_classes and len(self.dataset) % 1000 == 0:
                                     datasetX = np.asarray([data[0] for data in self.dataset])
                                     datasetY = np.asarray([data[1] for data in self.dataset])
                                     trainX, testX, trainy, testy = train_test_split(datasetX, datasetY, test_size=0.3)
@@ -323,7 +329,7 @@ class FaceRecogniser(yarp.RFModule):
                                     self.normaliser = in_encoder
                                     self.encoder = out_encoder
 
-                                    if len(self.dataset) > 500*num_classes and score_test >= 0.99:
+                                    if len(self.dataset) > 1000*num_classes and score_test >= 0.99:
                                         pk.dump(self.svm_model, open(self.output_path_models + 'svm_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.encoder, open(self.output_path_models + 'label_encoder_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.normaliser, open(self.output_path_models + 'normaliser_model_' + self.name_file + '.pkl', 'wb'))
