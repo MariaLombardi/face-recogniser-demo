@@ -18,12 +18,12 @@ def compute_centroid(points):
     mean_x = np.mean([p[0] for p in points])
     mean_y = np.mean([p[1] for p in points])
 
-    if mean_x > IMAGE_WIDTH:
-        mean_x = IMAGE_WIDTH
+    if mean_x >= IMAGE_WIDTH:
+        mean_x = IMAGE_WIDTH-1
     if mean_x < 0:
         mean_x = 0
-    if mean_y > IMAGE_HEIGHT:
-        mean_y = IMAGE_HEIGHT
+    if mean_y >= IMAGE_HEIGHT:
+        mean_y = IMAGE_HEIGHT-1
     if mean_y < 0:
         mean_y = 0
 
@@ -45,7 +45,7 @@ def dist_2d(p1, p2):
 def get_openpose_bbox(pose):
 
     n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
-    if len(n_joints_set) > 2:
+    if n_joints_set:
         centroid = compute_centroid(n_joints_set)
 
         min_x = min([joint[0] for joint in n_joints_set])
@@ -129,14 +129,30 @@ def get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, distance
 
     for idx, pose in enumerate(poses):
         n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
-        points_depth = [human_depth[joint[1], joint[0]] for joint in n_joints_set]
-        depth = np.mean(points_depth)
+        if n_joints_set:
+            depth_joints = []
+            for joint in n_joints_set:
+                if int(joint[1]) < 0:
+                    joint[1] = 0
+                elif int(joint[1]) >= IMAGE_HEIGHT:
+                    joint[1] = IMAGE_HEIGHT-1
+                if int(joint[0]) < 0:
+                    joint[0] = 0
+                elif int(joint[0]) >= IMAGE_WIDTH:
+                    joint[0] = IMAGE_WIDTH-1
 
-        if depth <= distance:
-            new_poses.append(pose)
-            new_conf_poses.append(conf_poses[idx])
-            new_faces.append(faces[idx])
-            new_conf_faces.append(conf_faces[idx])
+                depth_joint = human_depth[int(joint[1]), int(joint[0])]
+                if depth_joint > 0:
+                    depth_joints.append(depth_joint)
+
+            if depth_joints:
+                depth = np.median(depth_joints)
+
+                if depth <= distance:
+                    new_poses.append(pose)
+                    new_conf_poses.append(conf_poses[idx])
+                    new_faces.append(faces[idx])
+                    new_conf_faces.append(conf_faces[idx])
 
     return new_poses, new_conf_poses, faces, new_conf_faces
 

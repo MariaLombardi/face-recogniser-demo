@@ -231,7 +231,7 @@ class FaceRecogniser(yarp.RFModule):
     def updateModule(self):
 
         received_image = self.in_port_human_image.read()
-        received_depth = self.in_port_human_depth.read()
+        received_depth = self.in_port_human_depth.read(False)
 
         if received_image:
             self.in_buf_human_image.copy(received_image)
@@ -247,8 +247,9 @@ class FaceRecogniser(yarp.RFModule):
                 try:
                     poses, conf_poses, faces, conf_faces = read_openpose_data(received_data)
                     # get only the poses in a certain threshold (e.g. 2 meters)
-                    if poses:
-                        poses, conf_poses, faces, conf_faces = get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, self.HUMAN_DISTANCE_THRESHOLD)
+                    if received_depth:
+                        if poses:
+                            poses, conf_poses, faces, conf_faces = get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, self.HUMAN_DISTANCE_THRESHOLD)
 
                     if poses:
                         # images 160x160 pixels
@@ -289,7 +290,7 @@ class FaceRecogniser(yarp.RFModule):
 
                                 # train each num_classes*1000 samples
                                 num_classes = (len(self.labels_set)+1)
-                                if len(self.dataset) > 1000*num_classes and len(self.dataset) % 1000 == 0:
+                                if len(self.dataset) >= 1000*num_classes and len(self.dataset) % 1000 == 0:
                                     datasetX = np.asarray([data[0] for data in self.dataset])
                                     datasetY = np.asarray([data[1] for data in self.dataset])
                                     trainX, testX, trainy, testy = train_test_split(datasetX, datasetY, test_size=0.3)
