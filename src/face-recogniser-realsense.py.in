@@ -23,7 +23,7 @@ sys.path.append('@import_path@')
 
 from utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
 from utilities import get_embedding, compute_centroid, joint_set, dist_2d, get_closer_poses
-from utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINTS_TRACKING, DISTANCE_THRESHOLD
+from utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINTS_TRACKING, DISTANCE_THRESHOLD, THRESHOLD_HISTORY_TRACKING
 
 yarp.Network.init()
 
@@ -85,6 +85,7 @@ class FaceRecogniser(yarp.RFModule):
         self.face_selected = ""
         if self.HUMAN_TRACKING:
             self.prev_human_joints_tracking = [None]*len(JOINTS_TRACKING)
+            self.threshold_history_tracking_count = 0
 
         # init lfw dataset
         self.lfw_dataset = []
@@ -360,7 +361,7 @@ class FaceRecogniser(yarp.RFModule):
                                             if y_preds[itP][1] > max_conf:
                                                 max_conf = y_preds[itP][1]
                                                 max_conf_idx = itP
-                                    # keep the child only at idx
+                                    # keep the teacher only at idx
                                     for itP in range(0, len(y_preds)):
                                         if y_preds[itP][0] == self.encoder.transform([label])[0] and itP != max_conf_idx:
                                             y_preds[itP][0] = self.encoder.transform(['unknown'])[0]
@@ -419,8 +420,12 @@ class FaceRecogniser(yarp.RFModule):
                                                     self.prev_human_joints_tracking[i] = tuple(selected_pose[JOINTS_TRACKING[i]])
                                                 else:
                                                     self.prev_human_joints_tracking[i] = None
+
+                                            # human recognised, put the threshold on the history to zero
+                                            self.threshold_history_tracking_count = 0
+
                                     else:
-                                        if self.HUMAN_TRACKING:
+                                        if self.HUMAN_TRACKING and self.threshold_history_tracking_count <= THRESHOLD_HISTORY_TRACKING:
                                             print("People not recognised in the scene. Forwarding the track of the prev skeleton.")
                                             # joints of all people in the scene
                                             current_joints_poses_tracking = []
@@ -475,10 +480,12 @@ class FaceRecogniser(yarp.RFModule):
                                                         print('Closest human too far from the tracked one')
                                             else:
                                                 print('Cannot track the skeleton at minimum distance')
+
+                                            self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
                         else:
                             print('Cannot extract any face from OpenPose')
                             # if the face is not visible
-                            if self.HUMAN_TRACKING:
+                            if self.HUMAN_TRACKING and self.threshold_history_tracking_count <= THRESHOLD_HISTORY_TRACKING:
                                 # joints of all people in the scene
                                 current_joints_poses_tracking = []
                                 for pose in poses:
@@ -532,6 +539,8 @@ class FaceRecogniser(yarp.RFModule):
                                             print('Closest human too far from the tracked one')
                                 else:
                                     print('Cannot track the skeleton at minimum distance')
+
+                                self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
                     else:
                         print('No human detected by OpenPose')
                 except Exception as err:
