@@ -250,7 +250,7 @@ class FaceRecogniser(yarp.RFModule):
                     # get only the poses in a certain threshold (e.g. 2 meters)
                     if received_depth:
                         if poses:
-                            poses, conf_poses, faces, conf_faces = get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, self.HUMAN_DISTANCE_THRESHOLD)
+                            received_data, poses, conf_poses, faces, conf_faces = get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_faces, self.HUMAN_DISTANCE_THRESHOLD)
 
                     if poses:
                         # images 160x160 pixels
@@ -477,7 +477,7 @@ class FaceRecogniser(yarp.RFModule):
 
                                             self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
                         else:
-                            print('Cannot extract any face from OpenPose')
+                            print('Skeleton detected but cannot extract any face from OpenPose')
                             # if the face is not visible
                             if self.HUMAN_TRACKING and self.threshold_history_tracking_count <= THRESHOLD_HISTORY_TRACKING:
                                 # joints of all people in the scene

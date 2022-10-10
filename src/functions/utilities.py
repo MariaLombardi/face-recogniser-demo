@@ -4,6 +4,7 @@ import os
 import numpy as np
 import math
 import cv2
+import yarp
 
 # open pose
 JOINTS_POSE = [0, 15, 16, 17, 18]
@@ -122,11 +123,15 @@ def filter_faces(human_depth, faces_img, bboxes, order, num_selected_faces):
     return new_faces_img, new_bboxes, new_order
 
 
-def get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, distance):
+def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_faces, distance):
     new_poses = []
     new_conf_poses = []
     new_faces = []
     new_conf_faces = []
+    new_received_data = yarp.Bottle()
+
+    print("Received data: %s" % received_data.toString())
+    received_data = received_data.get(0).asList()
 
     for idx, pose in enumerate(poses):
         n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
@@ -154,8 +159,13 @@ def get_closer_poses(human_depth, poses, conf_poses, faces, conf_faces, distance
                     new_conf_poses.append(conf_poses[idx])
                     new_faces.append(faces[idx])
                     new_conf_faces.append(conf_faces[idx])
+                    new_received_data.addList().read((received_data.get(idx)))
 
-    return new_poses, new_conf_poses, faces, new_conf_faces
+    new_received_data_list = yarp.Bottle()
+    new_received_data_list.addList().read(new_received_data)
+    print("Filtered received data: %s" % new_received_data_list.toString())
+
+    return new_received_data_list, new_poses, new_conf_poses, faces, new_conf_faces
 
 
 def get_mean_depth_over_area(image_depth, pixel, range):
