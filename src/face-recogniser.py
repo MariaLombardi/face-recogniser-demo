@@ -14,7 +14,7 @@ from sklearn.calibration import CalibratedClassifierCV
 
 from functions.utilities import read_openpose_data, extract_faces, draw_bboxes
 from functions.utilities import get_embedding, compute_centroid, joint_set
-from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE
+from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE_FACE
 
 yarp.Network.init()
 
@@ -240,7 +240,7 @@ class FaceRecogniser(yarp.RFModule):
                                 self.out_port_prediction.write(pred_list)
 
                                 selected_pose = poses[openpose_idx]
-                                centroid = compute_centroid([selected_pose[joint] for joint in JOINTS_POSE if joint_set(selected_pose[joint])])
+                                centroid = compute_centroid([selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
                                 human_image = cv2.circle(human_image, tuple([int(centroid[0]), int(centroid[1])]), 6, (0, 0, 255), -1)
                     else:
                         print("Warning! Human faces detected > labels. Human faces: " + str(len(poses)))

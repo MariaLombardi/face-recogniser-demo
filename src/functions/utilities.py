@@ -7,7 +7,7 @@ import cv2
 import yarp
 
 # open pose
-JOINTS_POSE = [0, 15, 16, 17, 18]
+JOINTS_POSE_FACE = [0, 15, 16, 17, 18]
 # hip, neck, right and left shoulder
 JOINTS_TRACKING = [8, 1, 2, 5]
 IMAGE_HEIGHT = 480
@@ -46,7 +46,7 @@ def dist_2d(p1, p2):
 
 def get_openpose_bbox(pose):
 
-    n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
+    n_joints_set = [pose[joint] for joint in JOINTS_POSE_FACE if joint_set(pose[joint])]
     if n_joints_set:
         centroid = compute_centroid(n_joints_set)
 
@@ -131,10 +131,9 @@ def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_
     new_received_data_internal_list = yarp.Bottle()
     new_received_data = yarp.Bottle()
 
-    print("Received data: %s" % received_data.toString())
-
     for idx, pose in enumerate(poses):
-        n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
+        #n_joints_set = [pose[joint] for joint in JOINTS_POSE_FACE if joint_set(pose[joint])]
+        n_joints_set = [pose[joint] for joint in range(0, len(pose)) if joint_set(pose[joint])]
         if n_joints_set:
             depth_joints = []
             for joint in n_joints_set:
@@ -162,7 +161,6 @@ def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_
                     new_received_data_internal_list.addList().read((received_data.get(0).asList()).get(idx))
 
     new_received_data.addList().read(new_received_data_internal_list)
-    print("Filtered received data: %s" % new_received_data.toString())
 
     return new_received_data, new_poses, new_conf_poses, faces, new_conf_faces
 

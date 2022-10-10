@@ -21,7 +21,7 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 
 from functions.utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
 from functions.utilities import get_embedding, compute_centroid, joint_set, dist_2d, get_closer_poses
-from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE, JOINTS_TRACKING, DISTANCE_THRESHOLD, THRESHOLD_HISTORY_TRACKING
+from functions.utilities import IMAGE_WIDTH, IMAGE_HEIGHT, JOINTS_POSE_FACE, JOINTS_TRACKING, DISTANCE_THRESHOLD, THRESHOLD_HISTORY_TRACKING
 
 yarp.Network.init()
 
@@ -383,7 +383,7 @@ class FaceRecogniser(yarp.RFModule):
                                         openpose_idx = (int)(order[choice_idx])
                                         selected_pose = poses[openpose_idx]
                                         centroid = compute_centroid(
-                                            [selected_pose[joint] for joint in JOINTS_POSE if joint_set(selected_pose[joint])])
+                                            [selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
 
                                         if centroid is not None and not np.isnan(np.array(centroid)).all():
                                             pred = yarp.Bottle()
