@@ -13,7 +13,7 @@ JOINTS_TRACKING = [8, 1, 2, 5]
 IMAGE_HEIGHT = 480
 IMAGE_WIDTH = 640
 DISTANCE_THRESHOLD = 50
-THRESHOLD_HISTORY_TRACKING = 10
+THRESHOLD_HISTORY_TRACKING = 100
 
 
 def compute_centroid(points):
@@ -132,7 +132,6 @@ def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_
     new_received_data = yarp.Bottle()
 
     for idx, pose in enumerate(poses):
-        #n_joints_set = [pose[joint] for joint in JOINTS_POSE_FACE if joint_set(pose[joint])]
         n_joints_set = [pose[joint] for joint in range(0, len(pose)) if joint_set(pose[joint])]
         if n_joints_set:
             depth_joints = []
