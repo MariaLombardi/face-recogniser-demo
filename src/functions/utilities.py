@@ -128,10 +128,10 @@ def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_
     new_conf_poses = []
     new_faces = []
     new_conf_faces = []
+    new_received_data_internal_list = yarp.Bottle()
     new_received_data = yarp.Bottle()
 
     print("Received data: %s" % received_data.toString())
-    received_data = received_data.get(0).asList()
 
     for idx, pose in enumerate(poses):
         n_joints_set = [pose[joint] for joint in JOINTS_POSE if joint_set(pose[joint])]
@@ -159,13 +159,12 @@ def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_
                     new_conf_poses.append(conf_poses[idx])
                     new_faces.append(faces[idx])
                     new_conf_faces.append(conf_faces[idx])
-                    new_received_data.addList().read((received_data.get(idx)))
+                    new_received_data_internal_list.addList().read((received_data.get(0).asList()).get(idx))
 
-    new_received_data_list = yarp.Bottle()
-    new_received_data_list.addList().read(new_received_data)
-    print("Filtered received data: %s" % new_received_data_list.toString())
+    new_received_data.addList().read(new_received_data_internal_list)
+    print("Filtered received data: %s" % new_received_data.toString())
 
-    return new_received_data_list, new_poses, new_conf_poses, faces, new_conf_faces
+    return new_received_data, new_poses, new_conf_poses, faces, new_conf_faces
 
 
 def get_mean_depth_over_area(image_depth, pixel, range):
