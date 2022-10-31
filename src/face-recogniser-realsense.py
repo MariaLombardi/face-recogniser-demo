@@ -184,11 +184,16 @@ class FaceRecogniser(yarp.RFModule):
         elif command.get(0).asString() == 'init':
             # command: init
             self.TRAIN = 0
-            # init the models again
+            # init the models and the rest again
             self.dataset = []
             self.svm_model = None
             self.encoder = None
             self.normaliser = None
+            self.name_file = ""
+            self.face_selected = ""
+            if self.HUMAN_TRACKING:
+                self.prev_human_joints_tracking = [None] * len(JOINTS_TRACKING)
+                self.threshold_history_tracking_count = 0
             reply.addString('Init done.')
         elif command.get(0).asString() == 'run':
             # command: run namefile FOI --> run pippomodel pippo
@@ -380,7 +385,7 @@ class FaceRecogniser(yarp.RFModule):
                                     if face_selected_idx in y_preds[:, 0]:
                                         conf_max = np.max((y_preds[y_preds[:, 0] == face_selected_idx])[:, 1])
                                         choice_idx = [idx for idx in range(0, y_preds.shape[0]) if y_preds[idx, 0] == face_selected_idx and y_preds[idx, 1] == conf_max]
-                                        openpose_idx = (int)(order[choice_idx])
+                                        openpose_idx = int(order[choice_idx])
                                         selected_pose = poses[openpose_idx]
                                         centroid = compute_centroid(
                                             [selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
@@ -476,6 +481,25 @@ class FaceRecogniser(yarp.RFModule):
                                                 print('Cannot track the skeleton at minimum distance')
 
                                             self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
+                            else:
+                                # forward the closest skeleton when then model is not loaded yet
+                                closer_faces_img, closer_bboxes, closer_order = filter_faces(human_depth, faces_img, bboxes,
+                                                                                             order, len(self.labels_set))
+                                human_image = draw_bboxes(human_image, closer_bboxes, color=(255, 0, 0))
+
+                                openpose_idx = int(closer_order[0])
+                                selected_pose = poses[openpose_idx]
+                                centroid = compute_centroid(
+                                    [selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
+
+                                if centroid is not None and not np.isnan(np.array(centroid)).all():
+                                    pred = yarp.Bottle()
+                                    pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
+                                    pred_list = yarp.Bottle()
+                                    pred_list.addList().read(pred)
+                                    self.out_port_prediction.write(pred_list)
+
+                                    human_image = cv2.circle(human_image, tuple([int(centroid[0]), int(centroid[1])]), 6, (255, 0, 0), -1)
                         else:
                             print('Skeleton detected but cannot extract any face from OpenPose')
                             # if the face is not visible

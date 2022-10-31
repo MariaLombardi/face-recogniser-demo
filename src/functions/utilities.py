@@ -110,15 +110,17 @@ def filter_faces(human_depth, faces_img, bboxes, order, num_selected_faces):
         center_bbox = [bbox[0]+((bbox[2]-bbox[0])/2), bbox[1]+((bbox[3]-bbox[1])/2)]
         depths.append(get_mean_depth_over_area(human_depth, center_bbox, 2))
 
+    depths_temp = np.copy(depths)
+
     for i in range(0, num_selected_faces):
-        min_depth = min(depths)
+        min_depth = min(depths_temp)
         min_index = depths.index(min_depth)
 
         new_faces_img.append(faces_img[min_index])
         new_bboxes.append(bboxes[min_index])
         new_order.append(order[min_index])
 
-        depths.pop(min_index)
+        depths_temp.pop(min_index)
 
     return new_faces_img, new_bboxes, new_order
 
