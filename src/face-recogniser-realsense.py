@@ -160,6 +160,11 @@ class FaceRecogniser(yarp.RFModule):
         self.out_port_prediction.open('/facerecogniser/pred:o')
         print('{:s} opened'.format('/facerecogniser/pred:o'))
 
+        # output for the logger for the state machine
+        self.out_port_state = yarp.Port()
+        self.out_port_state.open('/facerecognition/state:o')
+        print('{:s} opened'.format('/facerecogniser/state:o'))
+
         self.human_image = np.ones((IMAGE_HEIGHT, IMAGE_WIDTH, 3), dtype=np.uint8)
 
         return True
@@ -216,6 +221,7 @@ class FaceRecogniser(yarp.RFModule):
         self.out_port_propag_image.close()
         self.out_port_propag_depth.close()
         self.out_port_prediction.close()
+        self.out_port_state.close()
         self.cmd_port.close()
         return True
 
@@ -228,6 +234,7 @@ class FaceRecogniser(yarp.RFModule):
         self.out_port_propag_image.close()
         self.out_port_propag_depth.close()
         self.out_port_prediction.close()
+        self.out_port_state.close()
         self.cmd_port.close()
         return True
 
@@ -342,6 +349,10 @@ class FaceRecogniser(yarp.RFModule):
                                         pk.dump(self.dataset, open(self.output_path_datasets + 'dataset_' + self.name_file + '.pkl', 'wb'))
                                         print("Training done. Models have been saved.")
                                         self.TRAIN = 0
+
+                                state = yarp.Bottle()
+                                state.addString("train")
+                                self.out_port_state(state)
 
                             # in the init phase everything is none
                             if self.svm_model is not None and self.encoder is not None and self.normaliser is not None:
@@ -481,6 +492,10 @@ class FaceRecogniser(yarp.RFModule):
                                                 print('Cannot track the skeleton at minimum distance')
 
                                             self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
+
+                                    state = yarp.Bottle()
+                                    state.addString("test")
+                                    self.out_port_state(state)
                             else:
                                 # forward the closest skeleton when then model is not loaded yet
                                 closer_faces_img, closer_bboxes, closer_order = filter_faces(human_depth, faces_img, bboxes,
