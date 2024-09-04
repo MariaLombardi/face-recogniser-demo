@@ -125,6 +125,32 @@ def filter_faces(human_depth, faces_img, bboxes, order, num_selected_faces):
     return new_faces_img, new_bboxes, new_order
 
 
+def filter_faces_bbox(faces_img, bboxes, order, num_selected_faces):
+    diagonals = []
+
+    new_faces_img = []
+    new_bboxes = []
+    new_order = []
+
+    # bbox = [math.floor(min_x), math.floor(min_y), math.floor(max_x), math.floor(max_y)]
+    for bbox in bboxes:
+        diagonal = math.sqrt(math.pow(bbox[2] - bbox[0], 2) + math.pow(bbox[3] - bbox[1], 2))
+        diagonals.append(diagonal)
+
+    diagonals_temp = np.copy(diagonals)
+    for i in range(0, num_selected_faces):
+        max_diagonal = max(diagonals_temp)
+        max_index = diagonals.index(max_diagonal)
+
+        new_faces_img.append(faces_img[max_index])
+        new_bboxes.append(bboxes[max_index])
+        new_order.append(order[max_index])
+
+        diagonals_temp.pop(max_index)
+
+    return new_faces_img, new_bboxes, new_order
+
+
 def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_faces, distance):
     new_poses = []
     new_conf_poses = []
@@ -155,6 +181,32 @@ def get_closer_poses(received_data, human_depth, poses, conf_poses, faces, conf_
                 depth = np.median(depth_joints)
 
                 if depth <= distance:
+                    new_poses.append(pose)
+                    new_conf_poses.append(conf_poses[idx])
+                    new_faces.append(faces[idx])
+                    new_conf_faces.append(conf_faces[idx])
+                    new_received_data_internal_list.addList().read((received_data.get(0).asList()).get(idx))
+
+    new_received_data.addList().read(new_received_data_internal_list)
+
+    return new_received_data, new_poses, new_conf_poses, faces, new_conf_faces
+
+
+def get_closer_poses_bbox(received_data, poses, conf_poses, faces, conf_faces, bbox_size):
+    new_poses = []
+    new_conf_poses = []
+    new_faces = []
+    new_conf_faces = []
+    new_received_data_internal_list = yarp.Bottle()
+    new_received_data = yarp.Bottle()
+
+    for idx, pose in enumerate(poses):
+        min_x, min_y, max_x, max_y = get_openpose_bbox(pose)
+        if min_x is not None and min_y is not None and max_x is not None and max_y is not None:
+            if min_x != max_x and min_y != max_y:
+                # add threshold on the diagonal
+                diagonal = math.sqrt(math.pow(max_x - min_x, 2) + math.pow(max_y - min_y, 2))
+                if diagonal <= bbox_size:
                     new_poses.append(pose)
                     new_conf_poses.append(conf_poses[idx])
                     new_faces.append(faces[idx])
