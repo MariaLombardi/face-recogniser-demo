@@ -55,11 +55,11 @@ class FaceRecogniser(yarp.RFModule):
 
         self.TRAIN = 0
         model_name = rf.find("facenet_model_name").asString()
-        self.facenet_model = load_model('./functions/' + model_name)
+        self.facenet_model = load_model('./models/' + model_name)
         print('Facenet model name: %s' % model_name)
-        self.output_path_models = rf.find("output_path_models").asString()
+        self.output_path_models = './models/'  # rf.find("output_path_models").asString()
         print('Output path for the models: %s' % self.output_path_models)
-        self.output_path_datasets = rf.find("output_path_datasets").asString()
+        self.output_path_datasets = './models/'  # rf.find("output_path_datasets").asString()
         print('Output path for the datasets: %s' % self.output_path_datasets)
         # labels must be divided by a dash, format accepted in ini file: pippo-pluto-paperino
         self.labels_set = (rf.find("face_train_labels").asString()).split("-")
@@ -70,11 +70,6 @@ class FaceRecogniser(yarp.RFModule):
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
         self.HUMAN_DISTANCE_THRESHOLD = rf.find("distance_threshold").asFloat64()
         print('Distance threshold for the recognition: %.2f meters' % self.HUMAN_DISTANCE_THRESHOLD)
-
-        if not os.path.exists(self.output_path_models):
-            os.makedirs(self.output_path_models)
-        if not os.path.exists(self.output_path_datasets):
-            os.makedirs(self.output_path_datasets)
 
         self.dataset = []
         self.svm_model = None

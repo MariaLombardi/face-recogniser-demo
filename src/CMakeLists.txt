@@ -5,11 +5,16 @@
 cmake_minimum_required(VERSION 3.1)
 project(face-recogniser-demo)
 
-set(import_path "${CMAKE_CURRENT_SOURCE_DIR}/functions")
+set(functions_path "${CMAKE_CURRENT_SOURCE_DIR}/functions")
+set(models_path "${CMAKE_CURRENT_SOURCE_DIR}/models")
 
 
-if(NOT EXISTS ${import_path})
-	message(FATAL_ERROR "the python functions in utilitis and config are not in the expected folder.")
+if(NOT EXISTS ${functions_path})
+	message(FATAL_ERROR "the python functions are not in the expected folder.")
+endif()
+
+if(NOT EXISTS ${models_path})
+	message(FATAL_ERROR "the python models are not in the expected folder.")
 endif()
 
 configure_file(face-recogniser.py.in face-recogniser.py @ONLY)
