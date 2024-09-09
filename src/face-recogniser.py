@@ -69,7 +69,7 @@ class FaceRecogniser(yarp.RFModule):
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
         self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
-        self.HUMAN_DISTANCE_THRESHOLD = rf.find("bbbox_threshold").asInt32()
+        self.HUMAN_DISTANCE_THRESHOLD = rf.find("bbox_threshold").asInt32()
         print('Bbox diagonal threshold for the recognition: %d pixels' % self.HUMAN_DISTANCE_THRESHOLD)
 
         self.dataset = []
@@ -146,37 +146,27 @@ class FaceRecogniser(yarp.RFModule):
             reply.addString('Quit command sent')
         elif command.get(0).asString() == 'train':
             # command: train namefile FOI --> train pippomodel pippo
-            self.TRAIN = 1
             # init the models again
+            self.TRAIN = 1
             self.dataset = []
             self.svm_model = None
             self.encoder = None
             self.normaliser = None
             self.name_file = command.get(1).asString()
             self.face_selected = command.get(2).asString()
-            reply.addString('Training started. Files will be saved as ' + self.name_file + '. Face of interest: ' + self.face_selected)
-        elif command.get(0).asString() == 'init':
-            self.TRAIN = 0
-            # init the models again
-            self.dataset = []
-            self.svm_model = None
-            self.encoder = None
-            self.normaliser = None
-            self.name_file = ""
-            self.face_selected = ""
             if self.HUMAN_TRACKING:
                 self.prev_human_joints_tracking = [None] * len(JOINTS_TRACKING)
                 self.threshold_history_tracking_count = 0
-            reply.addString('Init done.')
+            reply.addString('Training started. Files will be saved as ' + self.name_file + '. Face of interest: ' + self.face_selected)
         elif command.get(0).asString() == 'run':
             # command: run namefile FOI --> run pippomodel pippo
-            self.TRAIN = 0
             # load svm model
             self.name_file = command.get(1).asString()
             self.svm_model = pk.load(open(self.output_path_models + 'svm_model_' + self.name_file + '.pkl', 'rb'))
             self.encoder = pk.load(open(self.output_path_models + 'label_encoder_model_' + self.name_file + '.pkl', 'rb'))
             self.normaliser = pk.load(open(self.output_path_models + 'normaliser_model_' + self.name_file + '.pkl', 'rb'))
             self.face_selected = command.get(2).asString()
+            self.TRAIN = 0
             reply.addString('Run. Loaded the models ' + self.name_file + '. Face of interest: ' + self.face_selected)
         return True
 
@@ -214,7 +204,7 @@ class FaceRecogniser(yarp.RFModule):
 
             received_data = self.in_port_human_data.read()
             if received_data:
-                try:
+                #try:
                     poses, conf_poses, faces, conf_faces = read_openpose_data(received_data)
                     if poses:
                         received_data, poses, conf_poses, faces, conf_faces = get_closer_poses_bbox(received_data, poses, conf_poses, faces, conf_faces, self.HUMAN_DISTANCE_THRESHOLD)
@@ -224,7 +214,7 @@ class FaceRecogniser(yarp.RFModule):
                         faces_img, bboxes, order = extract_faces(human_image, poses, required_size=(160, 160))
                         if len(bboxes) > 0:
                             # print bounding box
-                            human_image = draw_bboxes(human_image, bboxes)
+                            human_image = draw_bboxes(human_image, bboxes, color=(0, 0, 255))
 
                             # if TRAINING collect the dataset
                             if self.TRAIN == 1:
@@ -247,9 +237,9 @@ class FaceRecogniser(yarp.RFModule):
                                 embeds = get_embedding(self.facenet_model, [item[0] for item in raw_data])
                                 [self.dataset.append((embeds[i], (raw_data[i])[1])) for i in range(0, len(embeds))]
 
-                                # train each num_classes*1000 samples
+                                # train each num_classes*300 samples
                                 num_classes = (len(self.labels_set) + 1)
-                                if len(self.dataset) >= 1000*num_classes and len(self.dataset) % 1000 == 0:
+                                if len(self.dataset) >= 250*num_classes and len(self.dataset) % 250 == 0:
                                     datasetX = np.asarray([data[0] for data in self.dataset])
                                     datasetY = np.asarray([data[1] for data in self.dataset])
                                     trainX, testX, trainy, testy = train_test_split(datasetX, datasetY, test_size=0.3)
@@ -288,7 +278,7 @@ class FaceRecogniser(yarp.RFModule):
                                     self.normaliser = in_encoder
                                     self.encoder = out_encoder
 
-                                    if len(self.dataset) > 1000*num_classes and score_train > 0.99 and score_test > 0.8:
+                                    if len(self.dataset) > 250*num_classes and score_train > 0.9 and score_test > 0.8:
                                         pk.dump(self.svm_model, open(self.output_path_models + 'svm_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.encoder, open(self.output_path_models + 'label_encoder_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.normaliser, open(self.output_path_models + 'normaliser_model_' + self.name_file + '.pkl', 'wb'))
@@ -298,6 +288,8 @@ class FaceRecogniser(yarp.RFModule):
 
                             # in the init phase everything is none
                             if self.svm_model is not None and self.encoder is not None and self.normaliser is not None:
+                                print(type(self.normaliser))
+                                print(type(self.encoder))
                                 # prediction for the face
                                 data = get_embedding(self.facenet_model, faces_img)
                                 data = self.normaliser.transform(data)
@@ -321,7 +313,8 @@ class FaceRecogniser(yarp.RFModule):
                                     # keep the teacher only at idx
                                     for itP in range(0, len(y_preds)):
                                         if y_preds[itP][0] == self.encoder.transform([label])[0] and itP != max_conf_idx:
-                                            y_preds[itP][0] = self.encoder.transform(['unknown'])[0]
+                                            prob_temp = y_preds[itP][1]
+                                            y_preds[itP] = (self.encoder.transform(['unknown'])[0], prob_temp)
 
                                 for itP in range(0, len(y_preds)):
                                     predicted_name = self.encoder.inverse_transform([y_preds[itP][0]])
@@ -431,22 +424,23 @@ class FaceRecogniser(yarp.RFModule):
 
                                             self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
                             else:
+                                # draw bbox of the closest one
                                 closer_faces_img, closer_bboxes, closer_order = filter_faces_bbox(faces_img, bboxes, order, len(self.labels_set))
                                 human_image = draw_bboxes(human_image, closer_bboxes, color=(255, 0, 0))
 
-                                openpose_idx = int(closer_order[0])
-                                selected_pose = poses[openpose_idx]
-                                centroid = compute_centroid(
-                                    [selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
-
-                                if centroid is not None and not np.isnan(np.array(centroid)).all():
-                                    pred = yarp.Bottle()
-                                    pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
-                                    pred_list = yarp.Bottle()
-                                    pred_list.addList().read(pred)
-                                    self.out_port_prediction.write(pred_list)
-
-                                    human_image = cv2.circle(human_image, tuple([int(centroid[0]), int(centroid[1])]), 6, (255, 0, 0), -1)
+                                # openpose_idx = int(closer_order[0])
+                                # selected_pose = poses[openpose_idx]
+                                # centroid = compute_centroid(
+                                #     [selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
+                                #
+                                # if centroid is not None and not np.isnan(np.array(centroid)).all():
+                                #     pred = yarp.Bottle()
+                                #     pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
+                                #     pred_list = yarp.Bottle()
+                                #     pred_list.addList().read(pred)
+                                #     self.out_port_prediction.write(pred_list)
+                                #
+                                #     human_image = cv2.circle(human_image, tuple([int(centroid[0]), int(centroid[1])]), 6, (255, 0, 0), -1)
 
                         else:
                             print('Skeleton detected but cannot extract any face from OpenPose')
@@ -507,8 +501,8 @@ class FaceRecogniser(yarp.RFModule):
                                 self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
                     else:
                         print('No human detected by OpenPose')
-                except Exception as err:
-                        print("Unexpected error!!! " + err)
+                #except Exception as err:
+                        #print("Unexpected error!!! " + str(err))
 
             txt = "TRAINING: %d, NAME: %s" % (self.TRAIN, self.name_file)
             human_image = cv2.putText(human_image, txt, tuple([20, 450]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
