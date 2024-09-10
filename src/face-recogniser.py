@@ -239,7 +239,7 @@ class FaceRecogniser(yarp.RFModule):
 
                                 # train each num_classes*300 samples
                                 num_classes = (len(self.labels_set) + 1)
-                                if len(self.dataset) >= 250*num_classes and len(self.dataset) % 250 == 0:
+                                if len(self.dataset) >= 100*num_classes and len(self.dataset) % 100 == 0:
                                     datasetX = np.asarray([data[0] for data in self.dataset])
                                     datasetY = np.asarray([data[1] for data in self.dataset])
                                     trainX, testX, trainy, testy = train_test_split(datasetX, datasetY, test_size=0.3)
@@ -288,141 +288,142 @@ class FaceRecogniser(yarp.RFModule):
 
                             # in the init phase everything is none
                             if self.svm_model is not None and self.encoder is not None and self.normaliser is not None:
-                                print(type(self.normaliser))
-                                print(type(self.encoder))
                                 # prediction for the face
                                 data = get_embedding(self.facenet_model, faces_img)
-                                data = self.normaliser.transform(data)
-                                yhat_class = self.svm_model.predict_proba(data)
-                                y_preds = []
-                                for itP in range(0, yhat_class.shape[0]):
-                                    # get name
-                                    prob = max(yhat_class[itP])
-                                    y_pred = (np.where(yhat_class[itP] == prob))[0]
-                                    y_preds.append((y_pred[0], prob))
+                                # if call train, the svm, normaliser and the encoder can be None online
+                                if self.normaliser is not None and self.svm_model is not None:
+                                    data = self.normaliser.transform(data)
+                                    yhat_class = self.svm_model.predict_proba(data)
+                                    y_preds = []
+                                    for itP in range(0, yhat_class.shape[0]):
+                                        # get name
+                                        prob = max(yhat_class[itP])
+                                        y_pred = (np.where(yhat_class[itP] == prob))[0]
+                                        y_preds.append((y_pred[0], prob))
 
-                                # there is only one instance for each label in label_set
-                                for label in self.labels_set:
-                                    max_conf = 0
-                                    max_conf_idx = 0
-                                    for itP in range(0, len(y_preds)):
-                                        if y_preds[itP][0] == self.encoder.transform([label])[0]:
-                                            if y_preds[itP][1] > max_conf:
-                                                max_conf = y_preds[itP][1]
-                                                max_conf_idx = itP
-                                    # keep the teacher only at idx
-                                    for itP in range(0, len(y_preds)):
-                                        if y_preds[itP][0] == self.encoder.transform([label])[0] and itP != max_conf_idx:
-                                            prob_temp = y_preds[itP][1]
-                                            y_preds[itP] = (self.encoder.transform(['unknown'])[0], prob_temp)
+                                    # there is only one instance for each label in label_set
+                                    if self.encoder is not None:
+                                        for label in self.labels_set:
+                                            max_conf = 0
+                                            max_conf_idx = 0
+                                            for itP in range(0, len(y_preds)):
+                                                if y_preds[itP][0] == self.encoder.transform([label])[0]:
+                                                    if y_preds[itP][1] > max_conf:
+                                                        max_conf = y_preds[itP][1]
+                                                        max_conf_idx = itP
+                                            # keep the teacher only at idx
+                                            for itP in range(0, len(y_preds)):
+                                                if y_preds[itP][0] == self.encoder.transform([label])[0] and itP != max_conf_idx:
+                                                    prob_temp = y_preds[itP][1]
+                                                    y_preds[itP] = (self.encoder.transform(['unknown'])[0], prob_temp)
 
-                                for itP in range(0, len(y_preds)):
-                                    predicted_name = self.encoder.inverse_transform([y_preds[itP][0]])
+                                        for itP in range(0, len(y_preds)):
+                                            predicted_name = self.encoder.inverse_transform([y_preds[itP][0]])
 
-                                    txt = "%s" % predicted_name[0]
-                                    human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3]) + 20]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
-                                    txt = "c: %0.1f" % y_preds[itP][1]
-                                    human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3]) + 50]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
+                                            txt = "%s" % predicted_name[0]
+                                            human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3]) + 20]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
+                                            txt = "c: %0.1f" % y_preds[itP][1]
+                                            human_image = cv2.putText(human_image, txt, tuple([int(bboxes[itP][0]), int(bboxes[itP][3]) + 50]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2, cv2.LINE_AA)
 
-                                if self.TRAIN == 0:
-                                    # send in output the selected pose from openpose as bottle
-                                    y_preds = np.array(y_preds)
-                                    face_selected_idx = self.encoder.transform(np.asarray([self.face_selected]))
-                                    if face_selected_idx in y_preds[:, 0]:
-                                        conf_max = np.max((y_preds[y_preds[:, 0] == face_selected_idx])[:, 1])
-                                        choice_idx = [idx for idx in range(0, y_preds.shape[0]) if y_preds[idx, 0] == face_selected_idx and y_preds[idx, 1] == conf_max]
-                                        openpose_idx = int(order[choice_idx])
-                                        selected_pose = poses[openpose_idx]
-                                        centroid = compute_centroid(
-                                            [selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
+                                        if self.TRAIN == 0 and self.encoder is not None:
+                                            # send in output the selected pose from openpose as bottle
+                                            y_preds = np.array(y_preds)
+                                            face_selected_idx = self.encoder.transform(np.asarray([self.face_selected]))
+                                            if face_selected_idx in y_preds[:, 0]:
+                                                conf_max = np.max((y_preds[y_preds[:, 0] == face_selected_idx])[:, 1])
+                                                choice_idx = [idx for idx in range(0, y_preds.shape[0]) if y_preds[idx, 0] == face_selected_idx and y_preds[idx, 1] == conf_max]
+                                                openpose_idx = int(order[choice_idx])
+                                                selected_pose = poses[openpose_idx]
+                                                centroid = compute_centroid(
+                                                    [selected_pose[joint] for joint in JOINTS_POSE_FACE if joint_set(selected_pose[joint])])
 
-                                        if centroid is not None and not np.isnan(np.array(centroid)).all():
-                                            pred = yarp.Bottle()
-                                            pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
-                                            pred_list = yarp.Bottle()
-                                            pred_list.addList().read(pred)
-                                            self.out_port_prediction.write(pred_list)
+                                                if centroid is not None and not np.isnan(np.array(centroid)).all():
+                                                    pred = yarp.Bottle()
+                                                    pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
+                                                    pred_list = yarp.Bottle()
+                                                    pred_list.addList().read(pred)
+                                                    self.out_port_prediction.write(pred_list)
 
-                                            human_image = cv2.circle(human_image, tuple([int(centroid[0]), int(centroid[1])]), 6, (255, 0, 0), -1)
-                                        else:
-                                            if self.HUMAN_TRACKING:
-                                                print("Recognised the human but the face is not visible. Forward the recognised skeleton anyway.")
-                                                pred = yarp.Bottle()
-                                                pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
-                                                pred_list = yarp.Bottle()
-                                                pred_list.addList().read(pred)
-                                                self.out_port_prediction.write(pred_list)
-
-                                                for joint in JOINTS_TRACKING:
-                                                    if joint_set(selected_pose[joint]):
-                                                        human_image = cv2.circle(human_image, tuple([int(selected_pose[joint][0]), int(selected_pose[joint][1])]), 6,(255, 0, 0), -1)
-
-                                        if self.HUMAN_TRACKING:
-                                            for i in range(0, len(JOINTS_TRACKING)):
-                                                if joint_set(selected_pose[JOINTS_TRACKING[i]]):
-                                                    self.prev_human_joints_tracking[i] = tuple(selected_pose[JOINTS_TRACKING[i]])
+                                                    human_image = cv2.circle(human_image, tuple([int(centroid[0]), int(centroid[1])]), 6, (255, 0, 0), -1)
                                                 else:
-                                                    self.prev_human_joints_tracking[i] = None
-
-                                            # human recognised, put the threshold on the history to zero
-                                            self.threshold_history_tracking_count = 0
-
-                                    else:
-                                        if self.HUMAN_TRACKING and self.threshold_history_tracking_count <= THRESHOLD_HISTORY_TRACKING:
-                                            print("People not recognised in the scene. Forwarding the track of the prev skeleton.")
-                                            # joints of all people in the scene
-                                            current_joints_poses_tracking = []
-                                            for pose in poses:
-                                                # joints for the single pose
-                                                current_joints_pose = []
-                                                for i in range(0, len(JOINTS_TRACKING)):
-                                                    if joint_set(pose[JOINTS_TRACKING[i]]):
-                                                        current_joints_pose.append(tuple(pose[JOINTS_TRACKING[i]]))
-                                                    else:
-                                                        current_joints_pose.append(None)
-                                                current_joints_poses_tracking.append(current_joints_pose)
-
-                                            dist = []
-                                            for row in current_joints_poses_tracking:
-                                                dist_row = []
-                                                for i in range(0, len(row)):
-                                                    if row[i] is not None and self.prev_human_joints_tracking[i] is not None:
-                                                        dist_row.append(dist_2d(row[i], self.prev_human_joints_tracking[i]))
-                                                    else:
-                                                        dist_row.append(None)
-                                                dist.append(dist_row)
-
-                                            # if len(dist) != 0 and not np.isnan(np.array(dist)).all():
-                                            if len(dist) != 0:
-                                                mean_dist = []
-                                                for row in dist:
-                                                    if not all(v is None for v in row):
-                                                        dist_without_None = [v for v in row if v is not None]
-                                                        mean_dist.append(statistics.mean(dist_without_None))
-                                                    else:
-                                                        mean_dist.append(None)
-
-                                                if not all(v is None for v in mean_dist):
-                                                    min_value = min(i for i in mean_dist if i is not None)
-                                                    min_idx = mean_dist.index(min_value)
-                                                    if min_value <= DISTANCE_THRESHOLD:
+                                                    if self.HUMAN_TRACKING:
+                                                        print("Recognised the human but the face is not visible. Forward the recognised skeleton anyway.")
                                                         pred = yarp.Bottle()
-                                                        pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                                        pred.addList().read((received_data.get(0).asList()).get(openpose_idx))
                                                         pred_list = yarp.Bottle()
                                                         pred_list.addList().read(pred)
                                                         self.out_port_prediction.write(pred_list)
 
-                                                        for joint in current_joints_poses_tracking[min_idx]:
-                                                            if joint is not None:
-                                                                human_image = cv2.circle(human_image, tuple([int(joint[0]), int(joint[1])]), 6,(255, 0, 0), -1)
+                                                        for joint in JOINTS_TRACKING:
+                                                            if joint_set(selected_pose[joint]):
+                                                                human_image = cv2.circle(human_image, tuple([int(selected_pose[joint][0]), int(selected_pose[joint][1])]), 6,(255, 0, 0), -1)
 
-                                                        self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
-                                                    else:
-                                                        print('Closest human too far from the tracked one')
+                                                if self.HUMAN_TRACKING:
+                                                    for i in range(0, len(JOINTS_TRACKING)):
+                                                        if joint_set(selected_pose[JOINTS_TRACKING[i]]):
+                                                            self.prev_human_joints_tracking[i] = tuple(selected_pose[JOINTS_TRACKING[i]])
+                                                        else:
+                                                            self.prev_human_joints_tracking[i] = None
+
+                                                    # human recognised, put the threshold on the history to zero
+                                                    self.threshold_history_tracking_count = 0
+
                                             else:
-                                                print('Cannot track the skeleton at minimum distance')
+                                                if self.HUMAN_TRACKING and self.threshold_history_tracking_count <= THRESHOLD_HISTORY_TRACKING:
+                                                    print("People not recognised in the scene. Forwarding the track of the prev skeleton.")
+                                                    # joints of all people in the scene
+                                                    current_joints_poses_tracking = []
+                                                    for pose in poses:
+                                                        # joints for the single pose
+                                                        current_joints_pose = []
+                                                        for i in range(0, len(JOINTS_TRACKING)):
+                                                            if joint_set(pose[JOINTS_TRACKING[i]]):
+                                                                current_joints_pose.append(tuple(pose[JOINTS_TRACKING[i]]))
+                                                            else:
+                                                                current_joints_pose.append(None)
+                                                        current_joints_poses_tracking.append(current_joints_pose)
 
-                                            self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
+                                                    dist = []
+                                                    for row in current_joints_poses_tracking:
+                                                        dist_row = []
+                                                        for i in range(0, len(row)):
+                                                            if row[i] is not None and self.prev_human_joints_tracking[i] is not None:
+                                                                dist_row.append(dist_2d(row[i], self.prev_human_joints_tracking[i]))
+                                                            else:
+                                                                dist_row.append(None)
+                                                        dist.append(dist_row)
+
+                                                    # if len(dist) != 0 and not np.isnan(np.array(dist)).all():
+                                                    if len(dist) != 0:
+                                                        mean_dist = []
+                                                        for row in dist:
+                                                            if not all(v is None for v in row):
+                                                                dist_without_None = [v for v in row if v is not None]
+                                                                mean_dist.append(statistics.mean(dist_without_None))
+                                                            else:
+                                                                mean_dist.append(None)
+
+                                                        if not all(v is None for v in mean_dist):
+                                                            min_value = min(i for i in mean_dist if i is not None)
+                                                            min_idx = mean_dist.index(min_value)
+                                                            if min_value <= DISTANCE_THRESHOLD:
+                                                                pred = yarp.Bottle()
+                                                                pred.addList().read((received_data.get(0).asList()).get(min_idx))
+                                                                pred_list = yarp.Bottle()
+                                                                pred_list.addList().read(pred)
+                                                                self.out_port_prediction.write(pred_list)
+
+                                                                for joint in current_joints_poses_tracking[min_idx]:
+                                                                    if joint is not None:
+                                                                        human_image = cv2.circle(human_image, tuple([int(joint[0]), int(joint[1])]), 6,(255, 0, 0), -1)
+
+                                                                self.prev_human_joints_tracking = current_joints_poses_tracking[min_idx]
+                                                            else:
+                                                                print('Closest human too far from the tracked one')
+                                                    else:
+                                                        print('Cannot track the skeleton at minimum distance')
+
+                                                    self.threshold_history_tracking_count = self.threshold_history_tracking_count + 1
                             else:
                                 # draw bbox of the closest one
                                 closer_faces_img, closer_bboxes, closer_order = filter_faces_bbox(faces_img, bboxes, order, len(self.labels_set))
