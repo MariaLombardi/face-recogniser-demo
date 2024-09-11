@@ -132,4 +132,4 @@ dmypy.json
 # my folders
 results/
 docs/
-LFW
+src/models/*.pkl
