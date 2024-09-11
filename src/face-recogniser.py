@@ -65,7 +65,7 @@ class FaceRecogniser(yarp.RFModule):
         # labels must be divided by a dash, format accepted in ini file: pippo-pluto-paperino
         self.labels_set = (rf.find("face_train_labels").asString()).split("-")
         print('Labels set: [%s]' % ', '.join(map(str, self.labels_set)))
-        self.path_lfw_dataset = rf.find("path_lfw_dataset").asString()
+        self.path_lfw_dataset = '../LWF/' #rf.find("path_lfw_dataset").asString()
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
         self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
