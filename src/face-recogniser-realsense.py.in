@@ -21,6 +21,7 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 
 sys.path.append('@functions_path@')
 sys.path.append('@models_path@')
+sys.path.append('@dataset_path@')
 
 from utilities import read_openpose_data, extract_faces, filter_faces, draw_bboxes
 from utilities import get_embedding, compute_centroid, joint_set, dist_2d, get_closer_poses
@@ -64,9 +65,9 @@ class FaceRecogniser(yarp.RFModule):
         self.output_path_datasets = '@models_path@' + '/'  # rf.find("output_path_datasets").asString()
         print('Output path for the datasets: %s' % self.output_path_datasets)
         # labels must be divided by a dash, format accepted in ini file: pippo-pluto-paperino
-        self.labels_set = (rf.find("face_train_labels").asString()).split("-")
+        self.labels_set = (rf.find("face_labels").asString()).split("-")
         print('Labels set: [%s]' % ', '.join(map(str, self.labels_set)))
-        self.path_lfw_dataset = '@models_path@' + '/' + '../LFW/' #rf.find("path_lfw_dataset").asString()
+        self.path_lfw_dataset = '@dataset_path@' + '/LFW/' #rf.find("path_lfw_dataset").asString()
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
         self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))

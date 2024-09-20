@@ -7,7 +7,7 @@ project(face-recogniser-demo)
 
 set(functions_path "${CMAKE_CURRENT_SOURCE_DIR}/functions")
 set(models_path "${CMAKE_CURRENT_SOURCE_DIR}/models")
-
+set(dataset_path "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 if(NOT EXISTS ${functions_path})
 	message(FATAL_ERROR "the python functions are not in the expected folder.")
@@ -15,6 +15,10 @@ endif()
 
 if(NOT EXISTS ${models_path})
 	message(FATAL_ERROR "the python models are not in the expected folder.")
+endif()
+
+if(NOT EXISTS ${dataset_path})
+	message(FATAL_ERROR "the LWF dataset is not in the expected folder.")
 endif()
 
 configure_file(face-recogniser.py.in face-recogniser.py @ONLY)

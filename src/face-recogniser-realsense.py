@@ -62,7 +62,7 @@ class FaceRecogniser(yarp.RFModule):
         self.output_path_datasets = './models/'  # rf.find("output_path_datasets").asString()
         print('Output path for the datasets: %s' % self.output_path_datasets)
         # labels must be divided by a dash, format accepted in ini file: pippo-pluto-paperino
-        self.labels_set = (rf.find("face_train_labels").asString()).split("-")
+        self.labels_set = (rf.find("face_labels").asString()).split("-")
         print('Labels set: [%s]' % ', '.join(map(str, self.labels_set)))
         self.path_lfw_dataset = '../LWF/' #rf.find("path_lfw_dataset").asString()
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
