@@ -288,7 +288,7 @@ class FaceRecogniser(yarp.RFModule):
                                     self.normaliser = in_encoder
                                     self.encoder = out_encoder
 
-                                    if len(self.dataset) >= self.MIN_SIZE_DATASET and score_test > self.ACCURACY_THRESHOLD:
+                                    if len(self.dataset) >= self.MIN_SIZE_DATASET * num_classes and score_test > self.ACCURACY_THRESHOLD:
                                         pk.dump(self.svm_model, open(self.output_path_models + 'svm_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.encoder, open(self.output_path_models + 'label_encoder_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.normaliser, open(self.output_path_models + 'normaliser_model_' + self.name_file + '.pkl', 'wb'))
