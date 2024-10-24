@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import tensorflow as tf
-import random
+import random, datetime
 import numpy as np
 import statistics
 import os
@@ -65,12 +65,16 @@ class FaceRecogniser(yarp.RFModule):
         # labels must be divided by a dash, format accepted in ini file: pippo-pluto-paperino
         self.labels_set = (rf.find("face_labels").asString()).split("-")
         print('Labels set: [%s]' % ', '.join(map(str, self.labels_set)))
-        self.path_lfw_dataset = '../LWF/' #rf.find("path_lfw_dataset").asString()
+        self.path_lfw_dataset = '../LFW/' #rf.find("path_lfw_dataset").asString()
         print('Path LFW dataset: %s' % self.path_lfw_dataset)
         self.HUMAN_TRACKING = bool(distutils.util.strtobool((rf.find("human_tracking").asString())))
         print('Human tracking (hip): %s' % str(self.HUMAN_TRACKING))
         self.HUMAN_DISTANCE_THRESHOLD = rf.find("bbox_threshold").asInt32()
         print('Bbox diagonal threshold for the recognition: %d pixels' % self.HUMAN_DISTANCE_THRESHOLD)
+        self.MIN_SIZE_DATASET = rf.find("min_size_dataset").asInt32()
+        print('Min size for the dataset: %d samples' % self.MIN_SIZE_DATASET)
+        self.ACCURACY_THRESHOLD = rf.find("accuracy_threshold").asFloat64()
+        print('Accuracy threshold to stop the training: %.2f ' % self.ACCURACY_THRESHOLD)
 
         self.dataset = []
         self.svm_model = None
@@ -157,6 +161,7 @@ class FaceRecogniser(yarp.RFModule):
             if self.HUMAN_TRACKING:
                 self.prev_human_joints_tracking = [None] * len(JOINTS_TRACKING)
                 self.threshold_history_tracking_count = 0
+            print("Training command received at ", datetime.datetime.now())
             reply.addString('Training started. Files will be saved as ' + self.name_file + '. Face of interest: ' + self.face_selected)
         elif command.get(0).asString() == 'run':
             # command: run namefile FOI --> run pippomodel pippo
@@ -237,9 +242,9 @@ class FaceRecogniser(yarp.RFModule):
                                 embeds = get_embedding(self.facenet_model, [item[0] for item in raw_data])
                                 [self.dataset.append((embeds[i], (raw_data[i])[1])) for i in range(0, len(embeds))]
 
-                                # train each num_classes*300 samples
+                                # train each num_classes*100 samples
                                 num_classes = (len(self.labels_set) + 1)
-                                if len(self.dataset) >= 100*num_classes and len(self.dataset) % 100 == 0:
+                                if len(self.dataset) >= 50*num_classes and len(self.dataset) % 100 == 0:
                                     datasetX = np.asarray([data[0] for data in self.dataset])
                                     datasetY = np.asarray([data[1] for data in self.dataset])
                                     trainX, testX, trainy, testy = train_test_split(datasetX, datasetY, test_size=0.3)
@@ -272,18 +277,20 @@ class FaceRecogniser(yarp.RFModule):
                                     print('Precision: test=%.3f ' % precision_score(testy, yhat_test))
                                     print('Recall: test=%.3f ' % recall_score(testy, yhat_test))
                                     print('F1 score: test=%.3f ' % f1_score(testy, yhat_test))
+                                    print('Timestamp: ', datetime.datetime.now())
                                     print('---------------')
 
                                     self.svm_model = model
                                     self.normaliser = in_encoder
                                     self.encoder = out_encoder
 
-                                    if len(self.dataset) > 250*num_classes and score_train > 0.9 and score_test > 0.8:
+                                    #if len(self.dataset) > 200*num_classes and score_train > 0.9 and score_test > 0.8:
+                                    if len(self.dataset) >= self.MIN_SIZE_DATASET * num_classes and score_test > self.ACCURACY_THRESHOLD:
                                         pk.dump(self.svm_model, open(self.output_path_models + 'svm_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.encoder, open(self.output_path_models + 'label_encoder_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.normaliser, open(self.output_path_models + 'normaliser_model_' + self.name_file + '.pkl', 'wb'))
                                         pk.dump(self.dataset, open(self.output_path_datasets + 'dataset_' + self.name_file + '.pkl', 'wb'))
-                                        print("Training done. Models have been saved.")
+                                        print("Training done. Models have been saved at ", datetime.datetime.now())
                                         self.TRAIN = 0
 
                             # in the init phase everything is none
