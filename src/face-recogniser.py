@@ -173,6 +173,20 @@ class FaceRecogniser(yarp.RFModule):
             self.face_selected = command.get(2).asString()
             self.TRAIN = 0
             reply.addString('Run. Loaded the models ' + self.name_file + '. Face of interest: ' + self.face_selected)
+        elif command.get(0).asString() == 'init':
+            # command: init
+            self.TRAIN = 0
+            # init the models and the rest again
+            self.dataset = []
+            self.svm_model = None
+            self.encoder = None
+            self.normaliser = None
+            self.name_file = ""
+            self.face_selected = ""
+            if self.HUMAN_TRACKING:
+                self.prev_human_joints_tracking = [None] * len(JOINTS_TRACKING)
+                self.threshold_history_tracking_count = 0
+            reply.addString('Init done.')
         return True
 
     def cleanup(self):
